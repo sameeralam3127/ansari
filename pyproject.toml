@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "ansari"
+version = "0.1.0"
+description = "Advanced Native Scripting for Automated Resource Integration"
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+typer = "^0.9.0"  # Beautiful CLI
+rich = "^13.0.0"                                # Terminal formatting
+pydantic = "^2.0.0"                            # Data validation
+
+[tool.poetry.scripts]
+ansari = "ansari.main:app"                      # This makes 'ansari' a command
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
