@@ -12,21 +12,21 @@ ANSARI is a Python-native DevOps utility designed to bridge the gap between comp
 
 ---
 
-## ✨ Key Features
+## Key Features
 
 - **Native Resource Integration:** Seamlessly interacts with Cloud APIs (AWS, GCP, Azure) and Kubernetes without heavy wrapper overhead.
 - **Intelligent Auditing:** Don't just see logs—get context. Ansari interprets resource states to tell you _why_ things are failing.
 - **Extensible Module Architecture:** Easily add new "Support Modules" for your specific stack.
 - **Beautiful CLI:** Powered by `Typer` and `Rich` for a terminal experience that is as readable as it is functional.
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Installation
 
 Ensure you have [Poetry](https://python-poetry.org/) installed:
 
 ```bash
-git clone [https://github.com/your-username/ansari.git](https://github.com/your-username/ansari.git)
+git clone [https://github.com/sameeralam3127/ansari.git](https://github.com/sameeralam3127/ansari.git)
 cd ansari
 poetry install
 ```
@@ -42,30 +42,47 @@ ansari --help
 Check the health of a specific resource:
 
 ```bash
-ansari check --resource eks-cluster-01
+poetry run ansari check eks-cluster-01
 ```
 
-## 📂 Project Structure
+Check with verbose output:
+
+```bash
+poetry run ansari check my-pod-123 -v
+```
+
+Display version information:
+
+```bash
+poetry run ansari version
+```
+
+## Project Structure
 
 - `ansari/core/`: The "Brain" – handles internal logic and configuration.
 - `ansari/modules/`: The "Hands" – contains integrations for AWS, K8s, Terraform, etc.
 - `ansari/main.py`: The "Voice" – the CLI interface you interact with.
 
-## 🛠 Built With
+## Built With
 
 - **Python 3.11+** - The foundation.
 - **Typer** - For building the CLI.
 - **Rich** - For beautiful terminal formatting and progress bars.
 - **Pydantic** - For rock-solid data validation.
 
-## 🤝 Contributing
+## Upcoming Features
 
-We welcome "Helpers" from all backgrounds! If you'd like to add a new module or improve the core:
-
-1. Fork the Project.
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`).
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`).
-4. Push to the Branch (`git push origin feature/AmazingFeature`).
-5. Open a Pull Request.
+- **AWS Integration:** Direct integration with AWS services (EC2, EKS, RDS, Lambda)
+- **GCP Support:** Google Cloud Platform resource monitoring
+- **Azure Integration:** Azure resource health checking
+- **Kubernetes Deep Dive:** Advanced K8s cluster diagnostics and pod analysis
+- **Terraform State Analysis:** Inspect and validate Terraform state files
+- **CI/CD Pipeline Integration:** GitHub Actions, GitLab CI, Jenkins support
+- **Alert Management:** Integrate with PagerDuty, Slack, and email notifications
+- **Resource Dependency Mapping:** Visualize relationships between resources
+- **Historical Health Tracking:** Track resource health over time with metrics
+- **Custom Plugin System:** Create and share custom resource checkers
+- **Configuration Management:** Support for multiple environments and profiles
+- **Automated Remediation:** Suggest and apply fixes for common issues
 
 ---
