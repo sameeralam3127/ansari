@@ -1,5 +1,5 @@
 """
-A.N.S.A.R.I. - Automated Navigator for Service Alerts and Resource Incidents.
+A.N.S.A.R.I. - Advanced Network SRE & Automated Remediation Interface.
 
 Ansari means "the helper"; this project applies that idea to DevOps,
 SRE, and platform engineering workflows.

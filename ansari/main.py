@@ -10,7 +10,7 @@ from ansari.core.config import config
 
 app = typer.Typer(
     name="ansari",
-    help="Automated Navigator for Service Alerts and Resource Incidents",
+    help="Advanced Network SRE & Automated Remediation Interface",
 )
 
 console = Console()
@@ -54,8 +54,8 @@ def version() -> None:
     rprint(
         Panel.fit(
             f"[bold green]ANSARI[/bold green] v{__version__}\n"
-            "[dim]Automated Navigator for Service Alerts "
-            "and Resource Incidents[/dim]",
+            "[dim]Advanced Network SRE & "
+            "Automated Remediation Interface[/dim]",
             border_style="green",
         )
     )

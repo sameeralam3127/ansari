@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "ansari"
 version = "0.1.0"
-description = "Automated Navigator for Service Alerts and Resource Incidents"
+description = "Advanced Network SRE & Automated Remediation Interface"
 authors = ["Sameer Alam <sameeralam3127@users.noreply.github.com>"]
 readme = "README.md"
 

@@ -1,26 +1,28 @@
 # A.N.S.A.R.I.
 
-**Automated Navigator for Service Alerts and Resource Incidents**
+**Advanced Network SRE & Automated Remediation Interface**
 
 [![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code Style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-> **Ansari** means "the helper." This project brings that idea into DevOps, SRE, and platform engineering by helping teams understand service alerts, resource health, and incident next steps from one readable CLI.
+> **Ansari** means "the helper." This project brings that idea into DevOps, SRE, and platform engineering by helping teams investigate infrastructure issues and move toward safe automated remediation from one readable CLI.
 
-ANSARI is a Python command line tool for engineers who want one friendly entry point to inspect cloud, Kubernetes, Terraform, and CI/CD resources. The long-term goal is to turn scattered operational checks into consistent answers that are easy to run locally, in GitHub Actions, or inside a platform engineering workflow.
+ANSARI is a Python command line tool for engineers who want one friendly entry point to inspect networks, cloud resources, Kubernetes workloads, Terraform state, and CI/CD signals. The long-term goal is to turn scattered operational checks into consistent answers and remediation guidance that are easy to run locally, in GitHub Actions, or inside a platform engineering workflow.
 
 ## What Issue ANSARI Solves
 
 During production support or daily platform operations, engineers often lose time switching between cloud consoles, Kubernetes commands, Terraform state, dashboards, alerts, and runbooks. That slows down triage and makes it harder to answer the basic question: "what is wrong, and what should I check next?"
 
-ANSARI is designed to reduce that friction by collecting resource signals and presenting them in a simple operational format:
+ANSARI is designed to reduce that friction by collecting network, service, and resource signals and presenting them in a simple operational format:
 
 - What resource am I checking?
 - Is it healthy, degraded, unhealthy, or unknown?
 - What signals matter right now?
 - What should I check or fix next?
 - Can this be automated in CI, incident response, or platform workflows?
+
+In simple words: ANSARI helps an engineer move from **alert** to **understanding** to **next action** faster.
 
 ## How It Helps DevOps, SRE, and Platform Teams
 
@@ -117,7 +119,7 @@ poetry run ansari version
 
 | Name               | Full Form or Meaning                                    | Why It Fits                                                                      |
 | ------------------ | ------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| ANSARI             | Automated Navigator for Service Alerts and Resource Incidents | Explains that the tool guides engineers through alerts, resources, and incidents. |
+| ANSARI             | Advanced Network SRE & Automated Remediation Interface | Explains that the tool focuses on SRE workflows, network/resource checks, and remediation guidance. |
 | ReliabilityChecker | Main checker class                                      | Clearer than a generic resource checker because the goal is reliability insight. |
 | ResourceHealth     | Normalized check result                                 | Keeps status, summary, signals, and recommendations in one model.                |
 | signals            | Observed facts                                          | Matches how SREs reason from telemetry and resource state.                       |
