@@ -1,20 +1,16 @@
-"""
-ANSARI - The Voice
-Main CLI interface for the ANSARI tool.
-"""
+"""CLI entry point for ANSARI."""
 
 import typer
 from rich.console import Console
 from rich.panel import Panel
 from rich import print as rprint
 
-from ansari.modules.resource_checker import ResourceChecker
+from ansari.modules.reliability_checker import ReliabilityChecker
 from ansari.core.config import config
 
-# Create the Typer app
 app = typer.Typer(
     name="ansari",
-    help="Advanced Native Scripting for Automated Resource Integration",
+    help="Automated Navigator for Service Alerts and Resource Incidents",
 )
 
 console = Console()
@@ -33,25 +29,19 @@ def check(
         help="Enable verbose output",
     ),
 ) -> None:
-    """
-    Check the health of a specific resource.
-    
-    Examples:
-        ansari check eks-cluster-01
-        ansari check my-pod -v
-    """
+    """Check the reliability posture of an infrastructure resource."""
     if verbose:
         config.debug = True
         console.print("[dim]Debug mode enabled[/dim]")
-    
+
     console.print(
         Panel.fit(
             f"[bold cyan]Checking resource:[/bold cyan] {resource}",
             border_style="cyan",
         )
     )
-    
-    checker = ResourceChecker()
+
+    checker = ReliabilityChecker()
     health = checker.check_resource(resource)
     checker.display_health(health)
 
@@ -60,12 +50,12 @@ def check(
 def version() -> None:
     """Display the version of ANSARI."""
     from ansari import __version__
-    
+
     rprint(
         Panel.fit(
             f"[bold green]ANSARI[/bold green] v{__version__}\n"
-            "[dim]Advanced Native Scripting for "
-            "Automated Resource Integration[/dim]",
+            "[dim]Automated Navigator for Service Alerts "
+            "and Resource Incidents[/dim]",
             border_style="green",
         )
     )
@@ -74,15 +64,13 @@ def version() -> None:
 @app.callback()
 def main() -> None:
     """
-    ANSARI - The Helper
-    
-    A Python-native DevOps utility for resource orchestration
-    and health auditing.
+    ANSARI - The Helper.
+
+    A Python-native DevOps, SRE, and platform engineering CLI for
+    reliability checks, operational context, and remediation guidance.
     """
     pass
 
 
 if __name__ == "__main__":
     app()
-
-# Made with Bob

@@ -1,9 +1,8 @@
 """
-A.N.S.A.R.I. - Advanced Native Scripting for Automated Resource Integration
+A.N.S.A.R.I. - Automated Navigator for Service Alerts and Resource Incidents.
 
-Ansari (Arabic: Ansar) means "The Helper."
+Ansari means "the helper"; this project applies that idea to DevOps,
+SRE, and platform engineering workflows.
 """
 
 __version__ = "0.1.0"
-
-# Made with Bob
