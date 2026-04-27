@@ -162,7 +162,8 @@ class ReliabilityChecker:
             status=HealthStatus.UNKNOWN,
             message="Resource type not recognized yet.",
             recommendations=[
-                "Use a recognizable resource name such as eks-cluster, pod, rds, or terraform-state.",
+                "Use a recognizable resource name such as eks-cluster, pod, "
+                "rds, or terraform-state.",
                 "Add a dedicated checker module for this platform resource.",
             ],
         )

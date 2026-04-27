@@ -2,7 +2,6 @@ from typer.testing import CliRunner
 
 from ansari.main import app
 
-
 runner = CliRunner()
 
 

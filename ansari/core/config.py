@@ -1,7 +1,5 @@
 """Configuration models for ANSARI."""
 
-from typing import Optional
-
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -24,8 +22,8 @@ class ResourceConfig(BaseModel):
 
     name: str = Field(..., description="Resource name")
     type: str = Field(..., description="Resource type (eks, ec2, k8s, etc.)")
-    region: Optional[str] = Field(default=None, description="Cloud region")
-    namespace: Optional[str] = Field(default=None, description="Kubernetes namespace")
+    region: str | None = Field(default=None, description="Cloud region")
+    namespace: str | None = Field(default=None, description="Kubernetes namespace")
 
 
 config = AnsariConfig()
