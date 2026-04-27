@@ -4,7 +4,8 @@
 
 [![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Code Style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Linted with Ruff](https://img.shields.io/badge/lint-ruff-46a758.svg)](https://github.com/astral-sh/ruff)
+[![Tests](https://img.shields.io/badge/tests-pytest-0A9EDC.svg)](https://pytest.org)
 
 > **Ansari** means "the helper." This project brings that idea into DevOps, SRE, and platform engineering by helping teams investigate infrastructure issues and move toward safe automated remediation from one readable CLI.
 
@@ -130,7 +131,7 @@ poetry run ansari version
 ### Phase 1: Foundation
 
 - Finalize CLI naming, help text, README, and package metadata.
-- Add `pytest`, `ruff`, and `black` configuration.
+- Add `pytest` and `ruff` configuration.
 - Add unit tests for `ReliabilityChecker` and CLI commands.
 - Add GitHub Actions for linting and tests.
 - Add issue templates for bugs, feature requests, and new checkers.

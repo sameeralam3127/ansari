@@ -1,10 +1,11 @@
 """CLI entry point for ANSARI."""
 
 import typer
+from rich import print as rprint
 from rich.console import Console
 from rich.panel import Panel
-from rich import print as rprint
 
+from ansari import __version__
 from ansari.modules.reliability_checker import ReliabilityChecker
 from ansari.core.config import config
 
@@ -30,8 +31,9 @@ def check(
     ),
 ) -> None:
     """Check the reliability posture of an infrastructure resource."""
+    config.debug = verbose
+
     if verbose:
-        config.debug = True
         console.print("[dim]Debug mode enabled[/dim]")
 
     console.print(
@@ -49,8 +51,6 @@ def check(
 @app.command()
 def version() -> None:
     """Display the version of ANSARI."""
-    from ansari import __version__
-
     rprint(
         Panel.fit(
             f"[bold green]ANSARI[/bold green] v{__version__}\n"
