@@ -1,14 +1,16 @@
 """Reliability checking primitives for infrastructure resources."""
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
+from rich import box
 from rich.console import Console
+from rich.panel import Panel
 from rich.table import Table
 
 
-class HealthStatus(str, Enum):
+class HealthStatus(StrEnum):
     """Supported health states for a checked resource."""
 
     HEALTHY = "healthy"
@@ -170,32 +172,56 @@ class ReliabilityChecker:
 
     def display_health(self, health: ResourceHealth) -> None:
         """Display health check results in a readable terminal table."""
-        table = Table(title=f"Reliability Check: {health.resource_name}")
-
-        table.add_column("Area", style="cyan", no_wrap=True)
-        table.add_column("Value", style="magenta")
-
         status_colors = {
             HealthStatus.HEALTHY: "green",
             HealthStatus.DEGRADED: "yellow",
             HealthStatus.UNHEALTHY: "red",
             HealthStatus.UNKNOWN: "dim",
         }
-
         status_color = status_colors.get(health.status, "white")
 
-        table.add_row("Resource Type", health.resource_type)
-        table.add_row("Status", f"[{status_color}]{health.status.value}[/]")
-        table.add_row("Summary", health.message)
+        overview = Table.grid(padding=(0, 2))
+        overview.add_column(style="cyan", no_wrap=True)
+        overview.add_column()
+        overview.add_row("Resource", health.resource_name)
+        overview.add_row("Type", health.resource_type)
+        overview.add_row("Status", f"[bold {status_color}]{health.status.value}[/]")
+        overview.add_row("Summary", health.message)
+
+        self.console.print(
+            Panel(
+                overview,
+                title=f"Reliability Check: {health.resource_name}",
+                border_style=status_color,
+                expand=False,
+            )
+        )
 
         if health.signals:
-            table.add_section()
+            signals_table = Table(
+                title="Signals",
+                box=box.SIMPLE,
+                show_header=True,
+                header_style="bold cyan",
+            )
+            signals_table.add_column("Signal", no_wrap=True)
+            signals_table.add_column("Observed Value")
+
             for key, value in health.signals.items():
-                table.add_row(f"Signal: {key}", str(value))
+                signals_table.add_row(key.replace("_", " "), str(value))
+
+            self.console.print(signals_table)
 
         if health.recommendations:
-            table.add_section()
-            for index, recommendation in enumerate(health.recommendations, start=1):
-                table.add_row(f"Next Step {index}", recommendation)
+            next_steps = Table(
+                title="Next Steps",
+                box=box.SIMPLE,
+                show_header=False,
+            )
+            next_steps.add_column("Step", style="cyan", no_wrap=True)
+            next_steps.add_column("Recommendation")
 
-        self.console.print(table)
+            for index, recommendation in enumerate(health.recommendations, start=1):
+                next_steps.add_row(str(index), recommendation)
+
+            self.console.print(next_steps)

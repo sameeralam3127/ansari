@@ -25,6 +25,25 @@ ANSARI is designed to reduce that friction by collecting network, service, and r
 
 In simple words: ANSARI helps an engineer move from **alert** to **understanding** to **next action** faster.
 
+### Real-World Example
+
+Imagine an on-call engineer receives an alert for `eks-cluster-01`. Without a helper, they may jump between Kubernetes commands, dashboards, cloud consoles, and runbooks before they know what to inspect first.
+
+With ANSARI, the first check is intentionally simple:
+
+```bash
+ansari check eks-cluster-01
+```
+
+The CLI responds with a readable overview:
+
+- the resource name and detected type
+- a health status such as `healthy`, `degraded`, `unhealthy`, or `unknown`
+- important signals such as ready nodes, running pods, backup state, or drift state
+- next steps the engineer can take immediately
+
+This does not replace full monitoring or cloud-native tooling. It gives teams a faster, clearer first step during triage, reliability reviews, and platform demos.
+
 ## How It Helps DevOps, SRE, and Platform Teams
 
 - **Faster triage:** Start with `ansari check <resource>` instead of remembering multiple commands.
@@ -38,6 +57,16 @@ In simple words: ANSARI helps an engineer move from **alert** to **understanding
 ANSARI is intentionally built around a small command set:
 
 ```bash
+ansari examples
+ansari check eks-cluster-01
+ansari check payment-pod
+ansari check prod-rds-db
+```
+
+When working directly from the source code with Poetry, prefix the same commands with `poetry run`:
+
+```bash
+poetry run ansari examples
 poetry run ansari check eks-cluster-01
 poetry run ansari check payment-pod
 poetry run ansari check prod-rds-db
@@ -56,8 +85,10 @@ The output is written for humans first:
 ## Current Features
 
 - **Readable CLI:** Built with `Typer` and `Rich` for clean terminal output.
+- **Helpful Examples Command:** `ansari examples` shows copy-pasteable commands for common checks.
 - **Reliability Check Model:** Normalized health states, resource types, signals, and recommendations.
-- **SRE-Friendly Output:** Shows summary, signals, and next steps instead of raw status only.
+- **SRE-Friendly Output:** Shows an overview, signals, and next steps instead of raw status only.
+- **Friendly Help and Errors:** Running `ansari` shows command help, and invalid input gives a practical next command.
 - **Extensible Module Layout:** New checkers can be added under `ansari/modules/`.
 - **Compatibility Layer:** The old `ResourceChecker` import still works while the clearer `ReliabilityChecker` name is introduced.
 
@@ -92,6 +123,12 @@ Display CLI help:
 poetry run ansari --help
 ```
 
+Show example commands:
+
+```bash
+poetry run ansari examples
+```
+
 Check an example Kubernetes cluster:
 
 ```bash
@@ -114,6 +151,20 @@ Display version information:
 
 ```bash
 poetry run ansari version
+```
+
+### Why Commands Use `poetry run`
+
+This repository uses Poetry to manage Python dependencies and expose the local `ansari` command while developing the project. That is why the README uses commands like:
+
+```bash
+poetry run ansari check eks-cluster-01
+```
+
+After ANSARI is installed as a normal CLI package, users can run the shorter command:
+
+```bash
+ansari check eks-cluster-01
 ```
 
 ## Naming Guide

@@ -24,4 +24,12 @@ def test_check_command_supports_verbose_mode() -> None:
     result = runner.invoke(app, ["check", "payment-pod", "--verbose"])
 
     assert result.exit_code == 0
-    assert "Debug mode enabled" in result.stdout
+    assert "Verbose mode enabled" in result.stdout
+
+
+def test_examples_command_shows_copy_pasteable_commands() -> None:
+    result = runner.invoke(app, ["examples"])
+
+    assert result.exit_code == 0
+    assert "ANSARI Examples" in result.stdout
+    assert "poetry run ansari check eks-cluster-01" in result.stdout
