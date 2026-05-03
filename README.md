@@ -74,13 +74,13 @@ poetry run ansari check prod-rds-db
 
 The output is written for humans first:
 
-| Output Area | What It Means |
-| --- | --- |
-| Resource Type | What kind of infrastructure ANSARI recognized. |
-| Status | `healthy`, `degraded`, `unhealthy`, or `unknown`. |
-| Summary | One-line operational meaning of the check. |
-| Signals | Facts gathered from the resource or integration. |
-| Next Steps | Practical checks or fixes an engineer can take next. |
+| Output Area   | What It Means                                        |
+| ------------- | ---------------------------------------------------- |
+| Resource Type | What kind of infrastructure ANSARI recognized.       |
+| Status        | `healthy`, `degraded`, `unhealthy`, or `unknown`.    |
+| Summary       | One-line operational meaning of the check.           |
+| Signals       | Facts gathered from the resource or integration.     |
+| Next Steps    | Practical checks or fixes an engineer can take next. |
 
 ## Current Features
 
@@ -169,13 +169,13 @@ ansari check eks-cluster-01
 
 ## Naming Guide
 
-| Name               | Full Form or Meaning                                    | Why It Fits                                                                      |
-| ------------------ | ------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Name               | Full Form or Meaning                                   | Why It Fits                                                                                         |
+| ------------------ | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
 | ANSARI             | Advanced Network SRE & Automated Remediation Interface | Explains that the tool focuses on SRE workflows, network/resource checks, and remediation guidance. |
-| ReliabilityChecker | Main checker class                                      | Clearer than a generic resource checker because the goal is reliability insight. |
-| ResourceHealth     | Normalized check result                                 | Keeps status, summary, signals, and recommendations in one model.                |
-| signals            | Observed facts                                          | Matches how SREs reason from telemetry and resource state.                       |
-| recommendations    | Suggested next steps                                    | Turns checks into action and portfolio value.                                    |
+| ReliabilityChecker | Main checker class                                     | Clearer than a generic resource checker because the goal is reliability insight.                    |
+| ResourceHealth     | Normalized check result                                | Keeps status, summary, signals, and recommendations in one model.                                   |
+| signals            | Observed facts                                         | Matches how SREs reason from telemetry and resource state.                                          |
+| recommendations    | Suggested next steps                                   | Turns checks into action and portfolio value.                                                       |
 
 ## Phase-Wise Development Roadmap
 
@@ -223,16 +223,6 @@ ansari check eks-cluster-01
 - **Rich** for terminal formatting.
 - **Pydantic** for typed check results and configuration.
 - **Poetry** for packaging and dependency management.
-
-## Portfolio Positioning
-
-ANSARI can stand out as a GitHub portfolio project because it is not only a script collection. It shows:
-
-- CLI design for real engineering workflows.
-- SRE thinking through status, signals, and recommendations.
-- Platform engineering direction through reusable checks and standardized output.
-- Cloud, Kubernetes, Terraform, CI/CD, and incident-readiness roadmap.
-- Clean structure that future contributors can understand quickly.
 
 ## License
 
