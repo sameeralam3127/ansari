@@ -210,11 +210,6 @@ ansari check eks-cluster-01
 
 ### Phase 5: Automation and Adoption
 
-- Add GitHub Actions examples for pull request checks and scheduled audits.
-- Publish release artifacts through GitHub Releases.
-- Add JSON and Markdown report outputs for CI comments and runbooks.
-- Add Slack, PagerDuty, or incident-management hooks for alert context.
-- Document contribution standards so other DevOps and SRE engineers can add checks easily.
 
 ## Built With
 
