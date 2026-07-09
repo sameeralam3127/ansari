@@ -7,7 +7,7 @@ then hand it to `ReliabilityChecker(checkers=...)` alongside (or instead of)
 the bundled demo checkers.
 
 Run it with:
-    poetry run python examples/custom_checker.py payments-lambda-fn
+    uv run python examples/custom_checker.py payments-lambda-fn
 """
 
 import sys
