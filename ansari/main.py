@@ -1,10 +1,11 @@
 """CLI entry point for ANSARI."""
 
+import pyfiglet
 import typer
-from rich import print as rprint
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+from rich.text import Text
 
 from ansari import __version__
 from ansari.core.config import config
@@ -16,18 +17,26 @@ app = typer.Typer(
         "ANSARI helps DevOps, SRE, and platform teams check infrastructure "
         "reliability from one readable CLI."
     ),
-    no_args_is_help=True,
     add_completion=False,
 )
 
 console = Console()
 
 EXAMPLE_RESOURCES = (
-    ("Kubernetes cluster", "poetry run ansari check eks-cluster-01"),
-    ("Kubernetes pod", "poetry run ansari check payment-pod"),
-    ("Database", "poetry run ansari check prod-rds-db"),
-    ("Terraform state", "poetry run ansari check terraform-prod-state"),
+    ("Kubernetes cluster", "ansari check eks-cluster-01"),
+    ("Kubernetes pod", "ansari check payment-pod"),
+    ("Database", "ansari check prod-rds-db"),
+    ("Terraform state", "ansari check terraform-prod-state"),
 )
+
+
+def print_banner() -> None:
+    """Print the big ANSARI wordmark."""
+    banner = pyfiglet.figlet_format("ANSARI", font="big")
+    console.print(Text(banner.rstrip("\n"), style="bold cyan"))
+    console.print(
+        "[dim]Advanced Network SRE & Automated Remediation Interface[/dim]\n"
+    )
 
 
 @app.command()
@@ -50,7 +59,7 @@ def check(
     if not resource:
         console.print(
             "[red]Please provide a resource name.[/red]\n"
-            "Example: [bold]poetry run ansari check eks-cluster-01[/bold]"
+            "Example: [bold]ansari check eks-cluster-01[/bold]"
         )
         raise typer.Exit(code=1)
 
@@ -60,7 +69,8 @@ def check(
     console.print(
         Panel.fit(
             f"[bold cyan]Checking[/bold cyan] {resource}\n"
-            "[dim]Looking for resource type, useful signals, and next steps.[/dim]",
+            "[dim]Looking for resource type, useful signals, "
+            "and next steps.[/dim]",
             border_style="cyan",
         )
     )
@@ -73,14 +83,8 @@ def check(
 @app.command()
 def version() -> None:
     """Display the version of ANSARI."""
-    rprint(
-        Panel.fit(
-            f"[bold green]ANSARI[/bold green] v{__version__}\n"
-            "[dim]Advanced Network SRE & "
-            "Automated Remediation Interface[/dim]",
-            border_style="green",
-        )
-    )
+    print_banner()
+    console.print(f"[bold green]Version[/bold green] {__version__}")
 
 
 @app.command()
@@ -96,15 +100,18 @@ def examples() -> None:
     console.print(table)
 
 
-@app.callback()
-def main() -> None:
+@app.callback(invoke_without_command=True)
+def main(ctx: typer.Context) -> None:
     """
     ANSARI - the helper for reliability checks.
 
     A Python-native DevOps, SRE, and platform engineering CLI for
     reliability checks, operational context, and remediation guidance.
     """
-    pass
+    if ctx.invoked_subcommand is None:
+        print_banner()
+        console.print(ctx.get_help())
+        raise typer.Exit()
 
 
 if __name__ == "__main__":

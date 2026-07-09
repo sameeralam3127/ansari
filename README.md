@@ -75,22 +75,15 @@ The CLI responds with a readable overview:
 
 ## Why It Is Easy to Use
 
-ANSARI is intentionally built around a small command set:
+ANSARI is intentionally built around a small command set, and after
+installing with `uv` (see [Quick Start](#quick-start)) it runs directly —
+no `poetry run` or `uv run` prefix needed:
 
 ```bash
 ansari examples
 ansari check eks-cluster-01
 ansari check payment-pod
 ansari check prod-rds-db
-```
-
-When working directly from the source code with Poetry, prefix the same commands with `poetry run`:
-
-```bash
-poetry run ansari examples
-poetry run ansari check eks-cluster-01
-poetry run ansari check payment-pod
-poetry run ansari check prod-rds-db
 ```
 
 ### Output Format
