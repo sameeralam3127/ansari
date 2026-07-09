@@ -298,10 +298,10 @@
             <p class="text-gray-600 mb-6">
               Ensure you have
               <a
-                href="https://python-poetry.org/"
+                href="https://docs.astral.sh/uv/"
                 target="_blank"
                 class="text-indigo-600 hover:text-indigo-800"
-                >Poetry</a
+                >uv</a
               >
               installed:
             </p>
@@ -329,7 +329,7 @@
                 </div>
                 <div>
                   <span class="prompt">$</span>
-                  <span class="command">poetry install</span>
+                  <span class="command">uv tool install --editable .</span>
                 </div>
               </div>
             </div>
@@ -358,25 +358,21 @@
                 </div>
                 <div class="mb-2">
                   <span class="prompt">$</span>
-                  <span class="command"
-                    >poetry run ansari check eks-cluster-01</span
-                  >
+                  <span class="command">ansari check eks-cluster-01</span>
                 </div>
                 <div class="mb-2">
                   <span class="comment"># Verbose output</span>
                 </div>
                 <div class="mb-2">
                   <span class="prompt">$</span>
-                  <span class="command"
-                    >poetry run ansari check my-pod-123 -v</span
-                  >
+                  <span class="command">ansari check my-pod-123 -v</span>
                 </div>
                 <div class="mb-2">
                   <span class="comment"># Version info</span>
                 </div>
                 <div>
                   <span class="prompt">$</span>
-                  <span class="command">poetry run ansari version</span>
+                  <span class="command">ansari version</span>
                 </div>
               </div>
             </div>
@@ -463,7 +459,12 @@
                   <span
                     class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800"
                   >
-                    Poetry
+                    uv
+                  </span>
+                  <span
+                    class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800"
+                  >
+                    Pyfiglet
                   </span>
                 </div>
               </div>
