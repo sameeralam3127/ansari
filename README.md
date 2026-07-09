@@ -19,6 +19,7 @@ ANSARI is a Python command-line tool for engineers who want one friendly entry p
 - [How It Helps DevOps, SRE, and Platform Teams](#how-it-helps-devops-sre-and-platform-teams)
 - [Why It Is Easy to Use](#why-it-is-easy-to-use)
 - [Current Features](#current-features)
+  - [Adding Your Own Checker](#adding-your-own-checker)
 - [Quick Start](#quick-start)
 - [Naming Guide](#naming-guide)
 - [Phase-Wise Development Roadmap](#phase-wise-development-roadmap)
@@ -113,8 +114,41 @@ The output is written for humans first. Each check result includes:
 - **Reliability Check Model:** Normalized health states, resource types, signals, and recommendations.
 - **SRE-Friendly Output:** Shows an overview, signals, and next steps instead of raw status only.
 - **Friendly Help and Errors:** Running `ansari` shows command help, and invalid input gives a practical next command.
-- **Extensible Module Layout:** New checkers can be added under `ansari/modules/`.
-- **Compatibility Layer:** The old `ResourceChecker` import still works while the clearer `ReliabilityChecker` name is introduced.
+- **Pluggable Checkers:** Each resource type (Kubernetes, database, Terraform) is its own `Checker` class under `ansari/modules/checkers/`. Adding support for a new resource means writing one small class — no changes to the CLI or existing checkers.
+
+> **Current limitation:** the bundled checkers return deterministic demo data today, not live infrastructure state — they exist to prove out the CLI contract and the checker interface. Wiring them to real Kubernetes/AWS/Terraform APIs is Phase 2+ (see the roadmap below).
+
+### Adding Your Own Checker
+
+Every checker implements a two-method interface:
+
+```python
+from ansari.models import ResourceHealth
+from ansari.modules.checkers.base import Checker
+
+
+class MyChecker(Checker):
+    def matches(self, resource_name: str) -> bool:
+        """Return True if this checker owns the given resource name."""
+
+    def check(self, resource_name: str) -> ResourceHealth:
+        """Run the check and return a normalized ResourceHealth."""
+```
+
+Hand it to `ReliabilityChecker` alongside (or instead of) the built-in checkers:
+
+```python
+from ansari.modules.checkers import DEFAULT_CHECKERS
+from ansari.modules.reliability_checker import ReliabilityChecker
+
+checker = ReliabilityChecker(checkers=(*DEFAULT_CHECKERS, MyChecker()))
+```
+
+See [`examples/custom_checker.py`](examples/custom_checker.py) for a complete, runnable example that adds an AWS Lambda checker:
+
+```bash
+poetry run python examples/custom_checker.py payments-lambda-fn
+```
 
 ### Best-Fit GitHub Tool Map
 
@@ -143,6 +177,15 @@ Clone the repository and install dependencies with Poetry:
 git clone https://github.com/sameeralam3127/ansari.git
 cd ansari
 poetry install
+```
+
+### Running Tests and Linting
+
+The same checks that run in CI can be run locally:
+
+```bash
+poetry run pytest
+poetry run ruff check .
 ```
 
 ### Basic Commands
@@ -217,11 +260,11 @@ ansari check eks-cluster-01
 
 ### Phase 1: Foundation
 
-- [ ] Finalize CLI naming, help text, README, and package metadata.
-- [ ] Add `pytest` and `ruff` configuration.
-- [ ] Add unit tests for `ReliabilityChecker` and CLI commands.
-- [ ] Add GitHub Actions for linting and tests.
-- [ ] Add issue templates for bugs, feature requests, and new checkers.
+- [x] Finalize CLI naming, help text, README, and package metadata.
+- [x] Add `pytest` and `ruff` configuration.
+- [x] Add unit tests for `ReliabilityChecker`, each checker module, and CLI commands.
+- [x] Add GitHub Actions for linting and tests.
+- [x] Add issue templates for bugs, feature requests, and new checkers.
 
 ### Phase 2: Local and Kubernetes Checks
 
