@@ -140,7 +140,7 @@ checker = ReliabilityChecker(checkers=(*DEFAULT_CHECKERS, MyChecker()))
 See [`examples/custom_checker.py`](examples/custom_checker.py) for a complete, runnable example that adds an AWS Lambda checker:
 
 ```bash
-poetry run python examples/custom_checker.py payments-lambda-fn
+uv run python examples/custom_checker.py payments-lambda-fn
 ```
 
 ### Best-Fit GitHub Tool Map
@@ -150,7 +150,7 @@ These are the best GitHub-facing tools and integrations to make ANSARI easy to a
 | Need             | Recommended Tool                 | How ANSARI Can Use It                                                    |
 | :--------------- | :------------------------------- | :----------------------------------------------------------------------- |
 | CI checks        | GitHub Actions                   | Run `ansari check` during pull requests or scheduled reliability audits. |
-| Packaging        | Poetry                           | Manage Python dependencies, scripts, and reproducible installs.          |
+| Packaging        | uv                                | Manage Python dependencies, scripts, and reproducible installs.          |
 | Releases         | GitHub Releases                  | Publish versioned CLI builds and changelogs.                             |
 | Security         | Dependabot                       | Keep Typer, Rich, Pydantic, and future SDKs patched.                     |
 | Code quality     | Ruff, Black, Pytest              | Add linting, formatting, and automated test gates.                       |
@@ -162,14 +162,37 @@ These are the best GitHub-facing tools and integrations to make ANSARI easy to a
 
 ## Quick Start
 
+ANSARI uses [`uv`](https://docs.astral.sh/uv/) for dependency management and
+packaging — no Poetry required. If you don't have `uv` yet:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
 ### Installation and Setup
 
-Clone the repository and install dependencies with Poetry:
+Clone the repository and install `ansari` as a direct CLI command:
 
 ```bash
 git clone https://github.com/sameeralam3127/ansari.git
 cd ansari
-poetry install
+uv tool install --editable .
+```
+
+`uv tool install` puts `ansari` straight on your `PATH` — every command below
+runs as plain `ansari ...`, no `poetry run` or `uv run` prefix. `--editable`
+means changes you make to the source take effect immediately, without
+reinstalling.
+
+> If `ansari` isn't found after installing, run `uv tool update-shell` and
+> restart your shell so `uv`'s tool directory is on `PATH`.
+
+If you're contributing to ANSARI rather than just using it, `uv sync`
+creates a project-local `.venv` with the dev dependencies (`pytest`, `ruff`)
+included:
+
+```bash
+uv sync
 ```
 
 ### Running Tests and Linting
@@ -177,8 +200,8 @@ poetry install
 The same checks that run in CI can be run locally:
 
 ```bash
-poetry run pytest
-poetry run ruff check .
+uv run pytest
+uv run ruff check .
 ```
 
 ### Basic Commands
@@ -186,13 +209,13 @@ poetry run ruff check .
 Display CLI help:
 
 ```bash
-poetry run ansari --help
+ansari --help
 ```
 
 Show example commands:
 
 ```bash
-poetry run ansari examples
+ansari examples
 ```
 
 ### Example Checks
@@ -200,39 +223,25 @@ poetry run ansari examples
 Check an example Kubernetes cluster:
 
 ```bash
-poetry run ansari check eks-cluster-01
+ansari check eks-cluster-01
 ```
 
 Check an example pod with verbose output:
 
 ```bash
-poetry run ansari check payment-pod -v
+ansari check payment-pod -v
 ```
 
 Check an example database resource:
 
 ```bash
-poetry run ansari check prod-rds-db
+ansari check prod-rds-db
 ```
 
 Display version information:
 
 ```bash
-poetry run ansari version
-```
-
-### Why Commands Use `poetry run`
-
-This repository uses Poetry to manage Python dependencies and expose the local `ansari` command while developing the project. That is why the README uses commands like:
-
-```bash
-poetry run ansari check eks-cluster-01
-```
-
-After ANSARI is installed as a normal CLI package, users can run the shorter command:
-
-```bash
-ansari check eks-cluster-01
+ansari version
 ```
 
 ---
@@ -295,8 +304,9 @@ ansari check eks-cluster-01
 - **Python 3.11+** for the CLI foundation.
 - **Typer** for command line ergonomics.
 - **Rich** for terminal formatting.
+- **Pyfiglet** for the ANSARI wordmark banner.
 - **Pydantic** for typed check results and configuration.
-- **Poetry** for packaging and dependency management.
+- **uv** for packaging and dependency management.
 
 ---
 
