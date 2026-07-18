@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Report a problem with a command, checker, or output
+about: Report a problem with the backend, admin dashboard, or widget
 title: "[Bug] "
 labels: bug
 assignees: ""
@@ -10,11 +10,11 @@ assignees: ""
 
 Describe the problem clearly.
 
-## Command Used
+## Where It Happens
 
-```bash
-ansari check <resource>
-```
+- [ ] Backend API
+- [ ] Admin dashboard
+- [ ] Embedded widget
 
 ## Expected Behavior
 
@@ -27,7 +27,7 @@ What happened instead?
 ## Environment
 
 - OS:
-- Python version:
+- Deployment: (docker compose / other)
 - ANSARI version:
 
 ## Additional Context

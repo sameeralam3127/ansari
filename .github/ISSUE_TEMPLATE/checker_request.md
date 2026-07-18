@@ -1,23 +1,25 @@
 ---
-name: Checker request
-about: Request support for a new platform or resource checker
-title: "[Checker] "
-labels: checker
+name: Provider or knowledge-source request
+about: Request support for a new LLM provider or knowledge ingestion source
+title: "[Provider] "
+labels: provider
 assignees: ""
 ---
 
-## Resource Type
+## What should ANSARI support?
 
-What should ANSARI support?
+Name the LLM provider (e.g. Claude, Gemini, Ollama) or knowledge source
+(e.g. Confluence, Notion, website crawling).
 
 ## Why It Matters
 
-What team or workflow would benefit from this checker?
+What team or workflow would benefit from this integration?
 
-## Signals to Collect
+## Interface It Should Fit
 
-List the most useful health signals or failure indicators.
+- [ ] `LLMProvider` adapter (`backend/app/llm/`)
+- [ ] Knowledge ingestion source (`backend/app/knowledge/`)
 
-## Recommended Next Steps
+## Additional Context
 
-What remediation or follow-up guidance should ANSARI suggest?
+Auth requirements, rate limits, or anything else that shapes the integration.

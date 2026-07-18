@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest a new checker, output mode, or workflow improvement
+about: Suggest a feature for the backend, admin dashboard, or widget
 title: "[Feature] "
 labels: enhancement
 assignees: ""
@@ -8,15 +8,15 @@ assignees: ""
 
 ## Problem
 
-What operational problem are you trying to solve?
+What problem are you trying to solve?
 
 ## Proposed Idea
 
 Describe the feature or workflow you want.
 
-## Example Resource or Workflow
+## Example Use Case
 
-Give a realistic DevOps, SRE, or platform engineering example.
+Give a realistic scenario (e.g. IT support, HR assistant, docs bot).
 
 ## Additional Context
 
