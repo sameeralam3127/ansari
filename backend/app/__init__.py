@@ -1,1 +1,0 @@
-"""ANSARI backend API."""
