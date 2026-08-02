@@ -23,7 +23,3 @@ here next.**
 
 The next tool will replace this README with real documentation once it
 lands. If you want to know when that happens, watch or star this repo.
-
-## License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
