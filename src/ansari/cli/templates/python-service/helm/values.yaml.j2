@@ -1,0 +1,29 @@
+replicaCount: 2
+
+image:
+  repository: {{ name }}
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  port: 8000
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+probes:
+  liveness: /healthz
+  readiness: /readyz
+{% if database != "none" %}
+env:
+  - name: DATABASE_URL
+    valueFrom:
+      secretKeyRef:
+        name: {{ name }}-secrets
+        key: database-url
+{% endif %}

@@ -1,0 +1,21 @@
+# {{ name }}
+
+Scaffolded by `ansari new` — {{ language }} service{% if database != "none" %} with {{ database }}{% endif %}.
+
+## Layout
+
+- `Dockerfile` — multi-stage, non-root, healthchecked build
+- `.github/workflows/ansari.yml` — lint, type-check, test, build, Trivy scan
+- `helm/{{ name }}/` — Helm chart for Kubernetes deployment
+
+## Local development
+
+```bash
+uv sync --extra dev
+uv run uvicorn {{ name.replace('-', '_') }}.main:app --reload
+```
+
+## Deploy
+
+Push to `main` to build and scan the image, then point an ANSARI
+Environment (or Argo CD Application) at `helm/{{ name }}/`.

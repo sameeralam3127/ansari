@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Testing / coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Local dev
+*.log
+.DS_Store
+
+# Claude Code local config (project skills/agents stay local, not published)
+.claude/
+
+# IDE
+.vscode/
+.idea/

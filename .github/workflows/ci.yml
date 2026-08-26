@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint-type-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ansari
+          POSTGRES_PASSWORD: ansari
+          POSTGRES_DB: ansari
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ansari"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+    env:
+      ANSARI_DATABASE_URL: postgresql+psycopg://ansari:ansari@localhost:5432/ansari
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - run: uv sync --extra dev
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Format check
+        run: uv run ruff format --check .
+
+      - name: Type check
+        run: uv run mypy src
+
+      - name: Migrate
+        run: uv run alembic upgrade head
+
+      - name: Test
+        run: uv run pytest --cov --cov-report=term-missing
+
+  build-and-scan:
+    needs: lint-type-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t ansari-api:${{ github.sha }} .
+
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: ansari-api:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          exit-code: "1"
