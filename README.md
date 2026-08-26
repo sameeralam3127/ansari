@@ -68,10 +68,6 @@ make setup    # install deps + pre-commit hooks
 make check    # lint + typecheck + test
 ```
 
-See [.claude/skills/ansari-dev](.claude/skills/ansari-dev) (local, not
-tracked in git) for the full command reference if you're working in this
-repo with Claude Code.
-
 ## Roadmap
 
 Next up: Kubernetes deployment (v0.2) and GitOps via Argo CD (v0.3). Full
