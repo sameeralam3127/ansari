@@ -33,22 +33,6 @@ flowchart LR
 **What exists today (v0.1):** `cli`, `api`, `ci` (through the Trivy scan
 stage). Everything from `registry` onward is planned (v0.2+).
 
-## API service layout
-
-```
-src/ansari/
-├── api/
-│   ├── main.py        # FastAPI app factory, middleware, structured logging
-│   ├── config.py       # pydantic-settings, env-driven
-│   ├── db.py           # SQLAlchemy engine/session, declarative Base
-│   ├── models.py       # ORM models (Project, Environment, PipelineRun, Deployment)
-│   ├── schemas.py      # Pydantic request/response models
-│   └── routers/         # one module per resource
-└── cli/
-    ├── main.py         # Typer app (`ansari new`)
-    └── templates/       # Jinja2 templates rendered into scaffolded services
-```
-
 Each router owns one resource and talks to Postgres directly through
 SQLAlchemy sessions injected via FastAPI's `Depends`. There is no service
 layer yet — at this scale it would be indirection without benefit; add one
@@ -133,8 +117,8 @@ real GitHub Actions run.
   reimplementing a job runner would be effort spent on a solved problem
   instead of on orchestration.
 - **ANSARI doesn't reconcile Kubernetes state itself.** Argo CD's
-  controller loop is the GitOps engine; ANSARI records *what* was deployed
-  and *when*, not *how* the cluster converges to it.
+  controller loop is the GitOps engine; ANSARI records _what_ was deployed
+  and _when_, not _how_ the cluster converges to it.
 - **UUID primary keys, not serial IDs.** Multiple environments and eventual
   multi-tenant use make globally-unique, non-guessable identifiers the
   safer default from day one.
