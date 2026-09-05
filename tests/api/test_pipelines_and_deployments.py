@@ -27,7 +27,7 @@ def test_update_pipeline_status_sets_finished_at(client: TestClient) -> None:
 
     response = client.patch(
         f"/projects/{project_id}/pipelines/{run['id']}/status",
-        params={"new_status": "succeeded"},
+        json={"status": "succeeded"},
     )
     assert response.status_code == 200
     assert response.json()["finished_at"] is not None

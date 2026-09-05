@@ -68,3 +68,13 @@ class DeploymentRead(BaseModel):
     image_tag: str
     status: DeploymentStatus
     deployed_at: datetime
+
+
+class PipelineStatusUpdate(BaseModel):
+    """Body for `PATCH /pipelines/{id}/status`.
+
+    A query parameter would put a state-changing value into access logs and
+    proxy caches, so the new status travels in the body.
+    """
+
+    status: PipelineStatus
