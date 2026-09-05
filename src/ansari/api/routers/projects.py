@@ -1,11 +1,13 @@
 import uuid
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ansari.api.db import get_db
 from ansari.api.models import Project
+from ansari.api.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from ansari.api.schemas import ProjectCreate, ProjectRead
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -23,8 +25,13 @@ def create_project(payload: ProjectCreate, db: Session = Depends(get_db)) -> Pro
 
 
 @router.get("", response_model=list[ProjectRead])
-def list_projects(db: Session = Depends(get_db)) -> list[Project]:
-    return list(db.scalars(select(Project)))
+def list_projects(
+    limit: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = DEFAULT_PAGE_SIZE,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    db: Session = Depends(get_db),
+) -> list[Project]:
+    stmt = select(Project).order_by(Project.created_at, Project.id).limit(limit).offset(offset)
+    return list(db.scalars(stmt))
 
 
 @router.get("/{project_id}", response_model=ProjectRead)

@@ -119,9 +119,10 @@ and the known limitations.
 | Fleet dashboard | 📋 |
 | Deploy to `kind` + rollback that actually reverts | 📋 |
 
-In place today: `mypy --strict`, `ruff` lint + format, 34 tests at 92%
-coverage, Alembic migrations, structured JSON logging with request IDs,
-`/healthz` + `/readyz`, non-root container, Trivy scanning in CI.
+In place today: `mypy --strict`, `ruff` lint + format, 41 tests run against
+real Postgres with the migrations applied, `alembic check` guarding model /
+migration drift, structured JSON logging with request IDs, `/healthz` +
+`/readyz`, non-root container, Trivy scanning in CI.
 
 **Known limitations are listed honestly** in
 [DESIGN.md](DESIGN.md#known-limitations) rather than left for you to discover.

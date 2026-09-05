@@ -1,11 +1,13 @@
 import uuid
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ansari.api.db import get_db
 from ansari.api.models import Deployment, DeploymentStatus, Environment, PipelineRun
+from ansari.api.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from ansari.api.schemas import DeploymentCreate, DeploymentRead
 
 router = APIRouter(prefix="/deployments", tags=["deployments"])
@@ -26,11 +28,17 @@ def create_deployment(payload: DeploymentCreate, db: Session = Depends(get_db)) 
 
 @router.get("", response_model=list[DeploymentRead])
 def list_deployments(
-    environment_id: uuid.UUID | None = None, db: Session = Depends(get_db)
+    environment_id: uuid.UUID | None = None,
+    limit: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = DEFAULT_PAGE_SIZE,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    db: Session = Depends(get_db),
 ) -> list[Deployment]:
     stmt = select(Deployment)
     if environment_id is not None:
         stmt = stmt.where(Deployment.environment_id == environment_id)
+    # Newest first, with id as a tiebreak: two deployments can share a
+    # timestamp, and an unordered LIMIT would page inconsistently.
+    stmt = stmt.order_by(Deployment.deployed_at.desc(), Deployment.id).limit(limit).offset(offset)
     return list(db.scalars(stmt))
 
 

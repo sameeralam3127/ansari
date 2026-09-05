@@ -1,29 +1,99 @@
+"""Test fixtures backed by a real Postgres.
+
+The suite used to build its schema with `Base.metadata.create_all` on in-memory
+SQLite. That tested a schema Alembic never produced, on an engine the project
+does not run in production, so a model change without a matching migration
+passed CI silently. These fixtures apply the migrations instead: if a migration
+is missing or wrong, the tests fail.
+"""
+
+import os
 from collections.abc import Generator
 
 import pytest
+from alembic.config import Config
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy import Engine, create_engine, text
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import Session
 
+from alembic import command
 from ansari.api.db import Base, get_db
 from ansari.api.main import create_app
 
+DEFAULT_TEST_DATABASE_URL = "postgresql+psycopg://ansari:ansari@localhost:5432/ansari_test"
+
+_UNAVAILABLE = (
+    "PostgreSQL is not reachable at {url}.\n"
+    "The API tests run against real Postgres so that migrations are exercised.\n"
+    "Start one with `docker compose up -d db`, or point ANSARI_TEST_DATABASE_URL "
+    "at your own instance."
+)
+
+
+def _test_database_url() -> str:
+    return os.environ.get("ANSARI_TEST_DATABASE_URL", DEFAULT_TEST_DATABASE_URL)
+
+
+def _create_database_if_missing(url: str) -> None:
+    """Create the test database, connecting via the `postgres` maintenance DB.
+
+    Keeps the test database separate from the development one so running the
+    suite never destroys local data.
+    """
+    target = make_url(url)
+    admin_engine = create_engine(target.set(database="postgres"), isolation_level="AUTOCOMMIT")
+    try:
+        with admin_engine.connect() as conn:
+            exists = conn.execute(
+                text("SELECT 1 FROM pg_database WHERE datname = :name"),
+                {"name": target.database},
+            ).scalar()
+            if not exists:
+                conn.execute(text(f'CREATE DATABASE "{target.database}"'))
+    finally:
+        admin_engine.dispose()
+
+
+@pytest.fixture(scope="session")
+def engine() -> Generator[Engine]:
+    url = _test_database_url()
+    try:
+        _create_database_if_missing(url)
+    except OperationalError:
+        message = _UNAVAILABLE.format(url=url)
+        # Skipping locally is a convenience; skipping in CI would silently
+        # delete this suite's coverage, so there it is a failure.
+        if os.environ.get("CI"):
+            pytest.fail(message, pytrace=False)
+        pytest.skip(message, allow_module_level=True)
+
+    test_engine = create_engine(url, pool_pre_ping=True)
+
+    # Rebuild the schema outright rather than downgrading: a downgrade must
+    # itself be correct for the tests to even start, and dropping the schema
+    # also clears enum types, which `op.drop_table` leaves behind.
+    with test_engine.begin() as conn:
+        conn.execute(text("DROP SCHEMA public CASCADE"))
+        conn.execute(text("CREATE SCHEMA public"))
+
+    config = Config("alembic.ini")
+    config.set_main_option("sqlalchemy.url", url)
+    command.upgrade(config, "head")
+
+    yield test_engine
+    test_engine.dispose()
+
 
 @pytest.fixture
-def db_session() -> Generator[Session]:
-    engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    Base.metadata.create_all(engine)
-    session_local = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-    session = session_local()
-    try:
+def db_session(engine: Engine) -> Generator[Session]:
+    tables = ", ".join(table.name for table in Base.metadata.sorted_tables)
+    with engine.begin() as conn:
+        conn.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
+
+    with Session(engine) as session:
         yield session
-    finally:
-        session.close()
 
 
 @pytest.fixture

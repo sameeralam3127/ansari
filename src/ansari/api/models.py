@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import CHAR, Enum, ForeignKey, String, TypeDecorator
+from sqlalchemy import CHAR, DateTime, Enum, ForeignKey, String, TypeDecorator
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
 from sqlalchemy.engine import Dialect
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -41,6 +41,15 @@ class UUID(TypeDecorator[uuid.UUID]):
         return value if isinstance(value, uuid.UUID) else uuid.UUID(value)
 
 
+def _enum_values(enum_cls: type[enum.Enum]) -> list[str]:
+    """Persist enum values rather than member names.
+
+    SQLAlchemy defaults to storing ``PENDING`` while the API serves ``pending``,
+    so anyone querying the database directly sees different data than the API.
+    """
+    return [str(member.value) for member in enum_cls]
+
+
 class PipelineStatus(enum.StrEnum):
     PENDING = "pending"
     RUNNING = "running"
@@ -63,7 +72,7 @@ class Project(Base):
     name: Mapped[str] = mapped_column(String(100), unique=True, index=True)
     repo_url: Mapped[str] = mapped_column(String(500))
     language: Mapped[str] = mapped_column(String(50))
-    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     environments: Mapped[list["Environment"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
@@ -77,7 +86,7 @@ class Environment(Base):
     __tablename__ = "environments"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID, primary_key=True, default=_uuid)
-    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"))
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), index=True)
     name: Mapped[str] = mapped_column(String(50))
     cluster: Mapped[str] = mapped_column(String(100))
     namespace: Mapped[str] = mapped_column(String(100))
@@ -92,13 +101,14 @@ class PipelineRun(Base):
     __tablename__ = "pipeline_runs"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID, primary_key=True, default=_uuid)
-    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"))
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), index=True)
     commit_sha: Mapped[str] = mapped_column(String(40))
     status: Mapped[PipelineStatus] = mapped_column(
-        Enum(PipelineStatus, name="pipeline_status"), default=PipelineStatus.PENDING
+        Enum(PipelineStatus, name="pipeline_status", values_callable=_enum_values),
+        default=PipelineStatus.PENDING,
     )
-    started_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    finished_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     project: Mapped["Project"] = relationship(back_populates="pipeline_runs")
 
@@ -107,12 +117,15 @@ class Deployment(Base):
     __tablename__ = "deployments"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID, primary_key=True, default=_uuid)
-    environment_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("environments.id"))
-    pipeline_run_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("pipeline_runs.id"))
+    environment_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("environments.id"), index=True)
+    pipeline_run_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("pipeline_runs.id"), index=True)
     image_tag: Mapped[str] = mapped_column(String(200))
     status: Mapped[DeploymentStatus] = mapped_column(
-        Enum(DeploymentStatus, name="deployment_status"), default=DeploymentStatus.PENDING
+        Enum(DeploymentStatus, name="deployment_status", values_callable=_enum_values),
+        default=DeploymentStatus.PENDING,
     )
-    deployed_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    deployed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
     environment: Mapped["Environment"] = relationship(back_populates="deployments")

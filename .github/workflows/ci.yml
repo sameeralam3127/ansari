@@ -23,6 +23,7 @@ jobs:
           --health-retries 5
     env:
       ANSARI_DATABASE_URL: postgresql+psycopg://ansari:ansari@localhost:5432/ansari
+      ANSARI_TEST_DATABASE_URL: postgresql+psycopg://ansari:ansari@localhost:5432/ansari_test
     steps:
       - uses: actions/checkout@v4
 
@@ -43,6 +44,11 @@ jobs:
 
       - name: Migrate
         run: uv run alembic upgrade head
+
+      # Fails when the models and the migrations have diverged -- the gap
+      # that let a model change ship without a migration.
+      - name: Check for missing migrations
+        run: uv run alembic check
 
       - name: Test
         run: uv run pytest --cov --cov-report=term-missing

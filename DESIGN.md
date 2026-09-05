@@ -271,15 +271,14 @@ Listed rather than left to be discovered. Each is a real defect.
 
 | Issue | Impact | Status |
 |---|---|---|
-| **Timezone-naive datetime columns.** Columns are `DateTime()` while `pipelines.py` writes `datetime.now(UTC)`; Postgres strips the offset. | Timestamps wrong outside UTC. | Fixing |
-| **Tests run on SQLite, production is Postgres.** `conftest.py` uses `create_all`, so migrations are never asserted against the models. | A model change without a migration passes CI silently. | Fixing — `alembic check` + Postgres-backed tests |
-| **No indexes on foreign keys.** Postgres doesn't add them automatically. | Fleet queries degrade as services accumulate. | Fixing |
 | **API is unauthenticated.** Any caller can `DELETE /projects/{id}`. | Not safe to expose; local/self-hosted only. | Out of scope — see *Designed, not built* |
-| **No pagination on list endpoints.** | Returns the whole table. | Fixing |
-| **`PATCH /pipelines/{id}/status` takes status as a query parameter.** | State-changing values land in access logs and proxy caches. | Fixing — moving to a body |
-| **Enum storage mismatch.** SQLAlchemy stores names (`PENDING`); the API serves values (`pending`). | Direct SQL sees different data than the API. | Fixing — `values_callable` |
 | **`rollback` doesn't roll anything back.** It sets a status field; nothing reconciles. | The endpoint's name overpromises. | Honest until the deploy path exists |
 | **Python template only.** | Limits the fleet demo to one language. | Planned |
+
+Fixed in #19: timezone-naive timestamp columns, migrations never asserted
+against the models, missing foreign-key indexes, unpaginated list endpoints, a
+state-changing value passed as a query parameter, and enum storage that made
+direct SQL disagree with the API.
 
 ## What was cut
 
