@@ -11,7 +11,12 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-config.set_main_option("sqlalchemy.url", get_settings().database_url)
+# Honour a URL the caller already configured -- the test fixtures point Alembic
+# at a throwaway database. Overwriting it unconditionally sent migrations to
+# whatever ANSARI_DATABASE_URL named, which for a developer is their real
+# database.
+if not config.get_main_option("sqlalchemy.url", None):
+    config.set_main_option("sqlalchemy.url", get_settings().database_url)
 target_metadata = Base.metadata
 
 

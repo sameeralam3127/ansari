@@ -96,4 +96,8 @@ def downgrade() -> None:
     op.drop_table("environments")
     op.drop_index(op.f("ix_projects_name"), table_name="projects")
     op.drop_table("projects")
+    # sa.Enum creates these types implicitly but drop_table does not remove
+    # them, which breaks any later re-upgrade with DuplicateObject.
+    sa.Enum(name="deployment_status").drop(op.get_bind(), checkfirst=True)
+    sa.Enum(name="pipeline_status").drop(op.get_bind(), checkfirst=True)
     # ### end Alembic commands ###

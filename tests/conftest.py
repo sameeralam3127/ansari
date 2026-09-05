@@ -70,9 +70,16 @@ def engine() -> Generator[Engine]:
         pytest.skip(message, allow_module_level=True)
 
     test_engine = create_engine(url, pool_pre_ping=True)
+
+    # Rebuild the schema outright rather than downgrading: a downgrade must
+    # itself be correct for the tests to even start, and dropping the schema
+    # also clears enum types, which `op.drop_table` leaves behind.
+    with test_engine.begin() as conn:
+        conn.execute(text("DROP SCHEMA public CASCADE"))
+        conn.execute(text("CREATE SCHEMA public"))
+
     config = Config("alembic.ini")
     config.set_main_option("sqlalchemy.url", url)
-    command.downgrade(config, "base")
     command.upgrade(config, "head")
 
     yield test_engine
