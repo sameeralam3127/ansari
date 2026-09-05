@@ -1,0 +1,15 @@
+name: python-service
+version: 1.0.0
+description: Python service with a hardened Dockerfile, GitHub Actions CI, and a Helm chart.
+
+# Files this template generates, as {source template} -> {destination in the
+# service repo}. Destinations may use {{ name }}; sources are Jinja templates.
+# `ansari check` reads this list to know what it is responsible for.
+files:
+  Dockerfile.j2: Dockerfile
+  github-workflow.yml.j2: .github/workflows/ansari.yml
+  README.md.j2: README.md
+  helm/Chart.yaml.j2: helm/{{ name }}/Chart.yaml
+  helm/values.yaml.j2: helm/{{ name }}/values.yaml
+  helm/templates/deployment.yaml.j2: helm/{{ name }}/templates/deployment.yaml
+  helm/templates/service.yaml.j2: helm/{{ name }}/templates/service.yaml
