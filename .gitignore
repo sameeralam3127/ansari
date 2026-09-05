@@ -30,3 +30,6 @@ htmlcov/
 # IDE
 .vscode/
 .idea/
+
+# Personal notes, not part of the published project
+LEARNING.md
