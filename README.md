@@ -43,6 +43,7 @@ ANSARI treats staying on the paved road as the product, not the setup step.
 ## How it works
 
 ```bash
+ansari templates                               # what this build ships
 ansari new payment-api --type python-service   # Dockerfile, CI, Helm chart
 ansari new vpc --type terraform-module         # module skeleton + validate in CI
 ansari attach --type k8s-scaling               # add scaling config to an existing repo
@@ -219,6 +220,35 @@ template support have no `schema` key and a scalar `template`/`version` pair.
 They are read as a one-entry list and **never rewritten on read**, so a repo
 that is only ever checked keeps the exact bytes it was scaffolded with. Their
 output is byte-identical to what it was before the change.
+
+## The template descriptor
+
+Each template is a directory of Jinja sources plus a `template.yaml` declaring
+its version, the variables it accepts, and where each source lands:
+
+```yaml
+name: python-service
+version: 1.0.0
+variables:
+  database:
+    type: string          # string | int | bool | list
+    default: postgres
+    choices: [postgres, none]
+files:
+  Dockerfile.j2: Dockerfile
+  helm/Chart.yaml.j2: helm/{{ name }}/Chart.yaml
+```
+
+**Templates declare their own variables.** The alternative — a table of known
+options inside the CLI — meant every new template type required editing
+`cli/main.py`, which is exactly the special-casing this fork exists to remove.
+Adding a template type is now a directory and a descriptor, with no Python
+change at all; there is a test that asserts precisely that.
+
+`name` is always supplied by ANSARI and cannot be declared: a template able to
+rename its own output would break the destination paths the manifest tracks.
+Unknown variables are rejected rather than ignored, so `--var databse=none`
+fails loudly instead of quietly scaffolding the default.
 
 ## The upgrade flow
 
@@ -456,7 +486,8 @@ repository layer: tenant scoping cannot depend on every handler remembering
 | | | |
 |---|---|---|
 | **v0.2** | Multi-template manifest — schema v2, backward-compatible reader, composite drift | ✅ |
-| **v0.3** | Pluggable templates — `--type`, declared variables, per-template render modes | 🔨 |
+| **v0.3** | Pluggable templates — `--type`, `--var`, template-declared variables | ✅ |
+| **v0.3.1** | Render modes — per-template delimiters, verbatim copy, file modes | 🔨 |
 | **v0.4** | `k8s-scaling` sub-template + `ansari attach` | 📋 |
 | **v0.5** | `terraform-module` — skeleton, `fmt`/`validate` in CI | 📋 |
 | **v0.6** | `ansible-role` — standard layout, `ansible-lint`, optional molecule | 📋 |
@@ -480,13 +511,15 @@ lower than the milestone before it.
 | REST API — services, environments, pipeline runs, deployments | ✅ |
 | Manifest schema v2 — multiple templates per repo, composite drift | ✅ |
 | Backward-compatible v1 reader — existing repos untouched | ✅ |
-| Pluggable template abstraction — `ansari new --type` | 🔨 |
+| Pluggable template abstraction — `ansari new --type`, `--var` | ✅ |
+| Templates declare their own variables — no CLI edit per type | ✅ |
+| `ansari templates` — list what this build ships | ✅ |
 | `terraform-module`, `ansible-role`, `k8s-scaling` templates | 📋 |
 | `ansari check --fleet` — drift across all repos | 📋 |
 | `ansari sync --pr` — three-way merge, fleet-wide upgrade PRs | 📋 |
 | Fleet dashboard | 📋 |
 
-In place today: `mypy --strict`, `ruff` lint + format, 80 tests (API tests run
+In place today: `mypy --strict`, `ruff` lint + format, 123 tests (API tests run
 against real Postgres with the migrations applied), `alembic check` guarding
 model / migration drift, structured JSON logging with request IDs, `/healthz` +
 `/readyz`, non-root container, Trivy scanning in CI.

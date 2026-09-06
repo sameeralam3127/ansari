@@ -8,14 +8,16 @@ from ansari.scaffold import (
     ManifestTooNewError,
     RepoDriftReport,
     TemplateDriftReport,
-    TemplateError,
-    bundled_template,
+    VariableError,
+    VariableValue,
+    available_templates,
     bundled_version,
     check_repo_drift,
+    find_bundled_template,
     read_manifest,
 )
 from ansari.scaffold.manifest import build_manifest, write_manifest
-from ansari.scaffold.template import render
+from ansari.scaffold.template import NAME_VARIABLE, render
 
 app = typer.Typer(
     name="ansari",
@@ -23,8 +25,7 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
-SUPPORTED_LANGUAGES = {"python"}
-SUPPORTED_DATABASES = {"postgres", "none"}
+DEFAULT_TYPE = "python-service"
 
 
 @app.callback()
@@ -37,32 +38,103 @@ def _fail(message: str) -> typer.Exit:
     return typer.Exit(1)
 
 
+def _parse_vars(pairs: list[str] | None) -> dict[str, str]:
+    """Turn repeated `--var key=value` into a mapping.
+
+    Values stay strings here; the template's own declaration is what knows how
+    to type them.
+    """
+    supplied: dict[str, str] = {}
+    for pair in pairs or []:
+        key, separator, value = pair.partition("=")
+        if not separator or not key.strip():
+            raise _fail(f"--var expects key=value, got {pair!r}")
+        supplied[key.strip()] = value
+    return supplied
+
+
+def _resolve_type(
+    template_type: str | None, language: str | None, database: str | None
+) -> tuple[str, dict[str, str]]:
+    """Settle which template to use, honouring the pre-`--type` flags.
+
+    `--language` and `--database` predate `--type` and are documented, so they
+    keep working indefinitely rather than being retired on a schedule. They are
+    translated into their general equivalents and warned about, never silently
+    reinterpreted.
+    """
+    aliased: dict[str, str] = {}
+    if language is not None:
+        aliased["language"] = language
+    if database is not None:
+        aliased["database"] = database
+
+    if template_type is not None and aliased:
+        # A precedence rule here would be a rule nobody could remember.
+        raise _fail("Pass either --type or the older --language/--database flags, not both.")
+
+    if template_type is not None:
+        return template_type, {}
+
+    if language is not None:
+        typer.secho(
+            f"--language is deprecated; use --type {language}-service. Still supported.",
+            fg=typer.colors.YELLOW,
+            err=True,
+        )
+        return f"{language}-service", aliased
+    if database is not None:
+        typer.secho(
+            "--database is deprecated; use --var database=<value>. Still supported.",
+            fg=typer.colors.YELLOW,
+            err=True,
+        )
+    return DEFAULT_TYPE, aliased
+
+
 @app.command()
 def new(
-    name: Annotated[str, typer.Argument(help="Service name, e.g. payment-api")],
-    language: Annotated[str, typer.Option(help="Service language")] = "python",
-    database: Annotated[str, typer.Option(help="Database dependency")] = "postgres",
-    output_dir: Annotated[Path, typer.Option(help="Where to create the service")] = Path("."),
+    name: Annotated[str, typer.Argument(help="Artifact name, e.g. payment-api")],
+    template_type: Annotated[
+        str | None, typer.Option("--type", help="Template to scaffold from")
+    ] = None,
+    var: Annotated[
+        list[str] | None, typer.Option("--var", help="Template variable, key=value (repeatable)")
+    ] = None,
+    output_dir: Annotated[Path, typer.Option(help="Where to create the repo")] = Path("."),
+    language: Annotated[
+        str | None, typer.Option(help="Deprecated: use --type <language>-service")
+    ] = None,
+    database: Annotated[
+        str | None, typer.Option(help="Deprecated: use --var database=<value>")
+    ] = None,
 ) -> None:
-    """Generate a new service: Dockerfile, CI workflow, and Helm chart."""
-    if language not in SUPPORTED_LANGUAGES:
-        raise _fail(f"Unsupported language: {language}. Supported: {sorted(SUPPORTED_LANGUAGES)}")
-    if database not in SUPPORTED_DATABASES:
-        raise _fail(f"Unsupported database: {database}. Supported: {sorted(SUPPORTED_DATABASES)}")
+    """Generate a new repo from a template.
 
+    Run `ansari templates` to see what this build ships.
+    """
+    chosen, aliased = _resolve_type(template_type, language, database)
+
+    spec = find_bundled_template(chosen)
+    if spec is None:
+        raise _fail(f"No template '{chosen}'. Available: {available_templates()}")
+
+    supplied = {**aliased, **_parse_vars(var)}
     try:
-        spec = bundled_template(language)
-    except TemplateError as exc:
+        variables: dict[str, VariableValue] = {
+            NAME_VARIABLE: name,
+            **spec.resolve_variables(supplied),
+        }
+    except VariableError as exc:
         raise _fail(str(exc)) from exc
 
-    service_dir = output_dir / name
-    if service_dir.exists():
-        raise _fail(f"Directory already exists: {service_dir}")
+    repo_dir = output_dir / name
+    if repo_dir.exists():
+        raise _fail(f"Directory already exists: {repo_dir}")
 
-    variables = {"name": name, "language": language, "database": database}
     written: list[str] = []
     for source, destination in spec.destinations(variables).items():
-        target = service_dir / destination
+        target = repo_dir / destination
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(render(spec, source, variables))
         written.append(destination)
@@ -70,16 +142,36 @@ def new(
     # The manifest is what makes `ansari check` and `ansari sync` possible later:
     # it records the template version this repo came from and a hash per file, so
     # a future upgrade can tell a hand-edit from an untouched generated file.
-    manifest = build_manifest(spec.name, spec.version, variables, service_dir, written)
-    write_manifest(service_dir, manifest)
+    manifest = build_manifest(spec.name, spec.version, variables, repo_dir, written)
+    write_manifest(repo_dir, manifest)
 
-    typer.secho(f"Created {service_dir}", fg=typer.colors.GREEN)
+    typer.secho(f"Created {repo_dir}", fg=typer.colors.GREEN)
     typer.echo(f"  {len(written)} files from template {spec.name} v{spec.version}")
     typer.echo("")
     typer.echo("Next steps:")
-    typer.echo(f"  cd {service_dir}")
+    typer.echo(f"  cd {repo_dir}")
     typer.echo("  git init && git add . && git commit -m 'Initial scaffold'")
-    typer.echo("  ansari check     # verify this service is still on the golden path")
+    typer.echo("  ansari check     # verify this repo is still on the golden path")
+
+
+@app.command()
+def templates() -> None:
+    """List the templates this build ships."""
+    names = available_templates()
+    if not names:
+        raise _fail("No bundled templates found.")
+
+    for template_name in names:
+        spec = find_bundled_template(template_name)
+        if spec is None:  # pragma: no cover - listing reads the same directory
+            continue
+        typer.secho(f"{spec.name}  v{spec.version}", fg=typer.colors.GREEN)
+        if spec.description:
+            typer.echo(f"  {spec.description}")
+        for key, variable in sorted(spec.variables.items()):
+            default = "required" if variable.required else f"default: {variable.default}"
+            choices = f", one of {variable.choices}" if variable.choices else ""
+            typer.echo(f"    --var {key}=<{variable.type}>  ({default}{choices})")
 
 
 def _echo_paths(label: str, paths: list[str]) -> None:
