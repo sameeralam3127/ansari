@@ -5,10 +5,13 @@ import typer
 
 from ansari.scaffold import (
     ManifestError,
+    ManifestTooNewError,
+    RepoDriftReport,
+    TemplateDriftReport,
     TemplateError,
-    TemplateSpec,
     bundled_template,
-    check_drift,
+    bundled_version,
+    check_repo_drift,
     read_manifest,
 )
 from ansari.scaffold.manifest import build_manifest, write_manifest
@@ -79,34 +82,21 @@ def new(
     typer.echo("  ansari check     # verify this service is still on the golden path")
 
 
-@app.command()
-def check(
-    path: Annotated[Path, typer.Argument(help="Service directory to check")] = Path("."),
-) -> None:
-    """Report whether a service has drifted from the template it was scaffolded from.
+def _echo_paths(label: str, paths: list[str]) -> None:
+    if paths:
+        typer.echo("")
+        typer.secho(f"{len(paths)} file(s) {label}:", fg=typer.colors.YELLOW)
+        for item in paths:
+            typer.echo(f"  {item}")
 
-    Read-only. Exits 1 when the service is behind or has local edits, so a repo
-    can fail its own CI when it falls off the golden path.
+
+def _report_single(report: TemplateDriftReport) -> None:
+    """Render one template's drift.
+
+    Kept byte-for-byte identical to the pre-multi-template output so that a repo
+    with one template -- which is every repo scaffolded so far -- sees no change
+    in what `ansari check` prints or what its CI greps for.
     """
-    try:
-        manifest = read_manifest(path)
-    except ManifestError as exc:
-        raise _fail(f"Could not read manifest: {exc}") from exc
-
-    if manifest is None:
-        raise _fail(
-            f"No .ansari/manifest.yaml in {path}.\n"
-            "This service was not scaffolded by ANSARI, or the manifest was removed."
-        )
-
-    language = manifest.variables.get("language", "python")
-    try:
-        spec: TemplateSpec = bundled_template(language)
-    except TemplateError as exc:
-        raise _fail(str(exc)) from exc
-
-    report = check_drift(path, manifest, spec.version)
-
     typer.echo(f"Template: {report.template}")
     if report.behind:
         typer.secho(
@@ -116,28 +106,86 @@ def check(
     else:
         typer.secho(f"Version:  {report.current_version} (current)", fg=typer.colors.GREEN)
 
-    for label, paths, colour in (
-        ("modified locally", report.modified, typer.colors.YELLOW),
-        ("deleted locally", report.deleted, typer.colors.YELLOW),
-    ):
-        if paths:
-            typer.echo("")
-            typer.secho(f"{len(paths)} file(s) {label}:", fg=colour)
-            for item in paths:
-                typer.echo(f"  {item}")
+    _echo_paths("modified locally", report.modified)
+    _echo_paths("deleted locally", report.deleted)
+
+
+def _report_composite(repo: RepoDriftReport) -> None:
+    """Render a repo carrying more than one template, one section per template."""
+    attached = len(repo.reports) + len(repo.unresolved)
+    typer.echo(f"Templates: {attached} attached")
+    typer.echo("")
+
+    for report in repo.reports:
+        if report.behind:
+            state = f"{report.recorded_version} → {report.current_version} (behind)"
+            colour = typer.colors.YELLOW
+        else:
+            state = f"{report.current_version} (current)"
+            colour = typer.colors.GREEN
+        typer.secho(f"  {report.template}  {state}", fg=colour)
+        for item in report.modified:
+            typer.echo(f"      modified: {item}")
+        for item in report.deleted:
+            typer.echo(f"      deleted:  {item}")
+
+    for name in repo.unresolved:
+        typer.secho(f"  {name}  unknown to this ANSARI (cannot verify)", fg=typer.colors.RED)
+
+
+@app.command()
+def check(
+    path: Annotated[Path, typer.Argument(help="Repo directory to check")] = Path("."),
+) -> None:
+    """Report whether a repo has drifted from the templates it was scaffolded from.
+
+    Read-only. Exits 1 when any attached template is behind, has local edits, or
+    cannot be verified — so a repo can fail its own CI when it falls off the
+    golden path.
+    """
+    try:
+        manifest = read_manifest(path)
+    except ManifestTooNewError as exc:
+        # Not a malformed manifest: the file is fine, this build is older than
+        # the one that wrote it. Saying so points at the actual fix.
+        raise _fail(str(exc)) from exc
+    except ManifestError as exc:
+        raise _fail(f"Could not read manifest: {exc}") from exc
+
+    if manifest is None:
+        raise _fail(
+            f"No .ansari/manifest.yaml in {path}.\n"
+            "This service was not scaffolded by ANSARI, or the manifest was removed."
+        )
+
+    # Resolution is by recorded template name, not by the `language` variable.
+    # Every manifest ever written records `template:` directly, so this reads
+    # pre-multi-template manifests without migrating them.
+    repo = check_repo_drift(path, manifest, bundled_version)
+
+    if len(manifest.templates) == 1 and repo.reports:
+        _report_single(repo.reports[0])
+    else:
+        _report_composite(repo)
 
     typer.echo("")
-    if report.clean:
+    if repo.clean:
         typer.secho(
-            f"On the golden path — {len(report.unchanged)} generated files unchanged.",
+            f"On the golden path — {len(repo.unchanged)} generated files unchanged.",
             fg=typer.colors.GREEN,
         )
         return
 
-    if report.edited:
+    if repo.edited:
         typer.echo("Locally edited files will be three-way merged, never overwritten.")
-    if report.behind:
+    if repo.behind:
         typer.echo("Run `ansari sync` to upgrade to the current template. (Not yet implemented.)")
+    if repo.unresolved:
+        typer.echo(
+            "Cannot verify: "
+            + ", ".join(repo.unresolved)
+            + ". This repo was scaffolded by a newer ANSARI; upgrade to check it."
+        )
     raise typer.Exit(1)
 
 

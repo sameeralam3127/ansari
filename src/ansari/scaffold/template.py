@@ -70,11 +70,42 @@ def load_template(root: Path) -> TemplateSpec:
 
 
 def bundled_template(language: str) -> TemplateSpec:
-    """Load a template that ships with ANSARI, by language."""
+    """Load a template that ships with ANSARI, by language.
+
+    Retained for the `--language` path; resolution by template name is the
+    general form. Renaming this is scheduled cleanup, not part of this change.
+    """
     root = BUNDLED_DIR / f"{language}-service"
     if not root.is_dir():
         raise TemplateError(f"no bundled template for language '{language}'")
     return load_template(root)
+
+
+def find_bundled_template(name: str) -> TemplateSpec | None:
+    """Load a bundled template by its own name, or None if this build has none.
+
+    This is the resolution path a manifest uses. Every manifest ever written
+    records `template:` directly, and the bundled directory is named for the
+    template it holds, so this works unchanged on manifests that predate
+    multi-template support -- no repo needs migrating for it.
+
+    Returns None rather than raising because "this build ships no such template"
+    is a reportable state, not an error: a repo may legitimately carry a template
+    from a newer ANSARI.
+    """
+    # Guard against a manifest steering the lookup out of the bundled directory.
+    if not name or "/" in name or "\\" in name or name.startswith("."):
+        return None
+    root = BUNDLED_DIR / name
+    if not root.is_dir():
+        return None
+    return load_template(root)
+
+
+def bundled_version(name: str) -> str | None:
+    """The version of a bundled template, or None if this build does not ship it."""
+    spec = find_bundled_template(name)
+    return spec.version if spec else None
 
 
 def render(spec: TemplateSpec, source: str, variables: dict[str, str]) -> str:
