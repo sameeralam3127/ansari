@@ -2,6 +2,21 @@ name: python-service
 version: 1.0.0
 description: Python service with a hardened Dockerfile, GitHub Actions CI, and a Helm chart.
 
+# Variables this template accepts, as {name} -> {declaration}. `ansari new`
+# validates against this list, so adding a template type never means teaching
+# the CLI about a new option. `name` is always supplied by ANSARI itself.
+variables:
+  language:
+    type: string
+    default: python
+    choices: [python]
+    description: Service language
+  database:
+    type: string
+    default: postgres
+    choices: [postgres, none]
+    description: Database dependency
+
 # Files this template generates, as {source template} -> {destination in the
 # service repo}. Destinations may use {{ name }}; sources are Jinja templates.
 # `ansari check` reads this list to know what it is responsible for.
