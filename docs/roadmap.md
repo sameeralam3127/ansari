@@ -13,9 +13,9 @@ acceptance criteria, what shipped) is in [phases.md](phases.md).
 | **v0.3.1** | M3 | Render modes: alternate delimiters, copy, file modes, conditional files | ✅ |
 | **v0.4** | M4 | `k8s-scaling` sub-template + `ansari attach` | ✅ |
 | **v0.5** | M5 | `terraform-module` | ✅ |
-| **v0.6** | M6 | `ansible-role` | ✅ built · awaiting merge |
-| **v0.7** | M7 | Fleet drift: `check --fleet`, `TEMPLATE_BINDING` per template | 📋 next |
-| **v0.8** | — | Sync: three-way merge, one PR per stale repo | 📋 |
+| **v0.6** | M6 | `ansible-role` | ✅ |
+| **v0.7** | M7 | Fleet drift: `check --fleet`, `TEMPLATE_BINDING` per template | ✅ built · awaiting merge |
+| **v0.8** | — | Sync: three-way merge, one PR per stale repo | 📋 next |
 | **v1.0** | — | Dashboard + `make demo` | 📋 |
 
 ## What depends on what
@@ -28,7 +28,7 @@ flowchart LR
     M2 --> M4
     M2 --> M5[M5 · terraform-module ✅]
     M3 --> M6[M6 · ansible-role ✅]
-    M4 --> M7[M7 · check --fleet]
+    M4 --> M7[M7 · check --fleet ✅]
     M7 --> S[v0.8 · sync]
     S --> D[v1.0 · dashboard + demo]
 
@@ -92,7 +92,7 @@ paused** until the scope is cut back. Noting it and carrying on is not allowed.
 - no breaking change to the public CLI without an explicit decision
 - the README and these docs updated in the same change
 
-Coverage so far: 92% (v0.1) → 95% (v0.2) → 96% (v0.3) → 97% (v0.3.1) → 98% (v0.4) → 98% (v0.5) → 98% (v0.6).
+Coverage so far: 92% (v0.1) → 95% (v0.2) → 96% (v0.3) → 97% (v0.3.1) → 98% (v0.4) → 98% (v0.5) → 98% (v0.6) → 97% (v0.7).
 
 ## Standing decisions
 

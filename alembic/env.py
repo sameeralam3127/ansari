@@ -5,7 +5,13 @@ from sqlalchemy import engine_from_config, pool
 from alembic import context
 from ansari.api.config import get_settings
 from ansari.api.db import Base
-from ansari.api.models import Deployment, Environment, PipelineRun, Project  # noqa: F401
+from ansari.api.models import (  # noqa: F401
+    Deployment,
+    Environment,
+    PipelineRun,
+    Project,
+    TemplateBinding,
+)
 
 config = context.config
 if config.config_file_name is not None:

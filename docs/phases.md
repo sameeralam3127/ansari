@@ -12,9 +12,9 @@ dependencies see [roadmap.md](roadmap.md); for how the result fits together see
 | [M3 · Render modes](#m3--render-modes) | v0.3.1 | ✅ merged in #28 | 144 | 97% |
 | [M4 · `k8s-scaling` + `attach`](#m4--k8s-scaling--attach) | v0.4 | ✅ merged in #29 | 178 | 98% |
 | [M5 · `terraform-module`](#m5--terraform-module) | v0.5 | ✅ merged in #30 | 199 | 98% |
-| [M6 · `ansible-role`](#m6--ansible-role) | v0.6 | ✅ built · awaiting merge | 219 | 98% |
-| [M7 · Fleet drift](#m7--fleet-drift) | v0.7 | 📋 next | | |
-| [Sync](#v08--sync) | v0.8 | 📋 | | |
+| [M6 · `ansible-role`](#m6--ansible-role) | v0.6 | ✅ merged in #31 | 219 | 98% |
+| [M7 · Fleet drift](#m7--fleet-drift) | v0.7 | ✅ built · awaiting merge | 236 | 97% |
+| [Sync](#v08--sync) | v0.8 | 📋 next | | |
 | [Dashboard + demo](#v10--dashboard--demo) | v1.0 | 📋 | | |
 | [Housekeeping](#housekeeping) | — | 📋 | | |
 
@@ -266,7 +266,7 @@ python-service, and fails when a template has no recorded output at all.
 
 ## M6 · `ansible-role`
 
-**Status:** ✅ built on `feat/ansible-role` · awaiting merge · **Version:** v0.6
+**Status:** ✅ merged in #31 · **Version:** v0.6
 
 **Goal.** A standard role layout that passes ansible-lint's production profile,
 written without a single escaped brace.
@@ -332,23 +332,76 @@ tripwire isn't crossed.
 
 ## M7 · Fleet drift
 
-**Status:** 📋 · **Version:** v0.7 · **Blocked on:** M4
+**Status:** ✅ built on `feat/fleet-drift` · awaiting merge · **Version:** v0.7
 
-**Goal.** Answer "who is behind, and on what?" across many repos.
+**Goal.** Answer "who is behind, and on what?" across many repos, from the CLI and
+in the API.
 
-**Scope**
+**CLI: `ansari check --fleet [ROOT]`**
 
-- `ansari check --fleet --root DIR` finds `.ansari/manifest.yaml` files under DIR
-- per-repo composite results plus a per-template-type summary
-  ("12 of 40 behind on python-service; 3 of 8 behind on terraform-module")
-- `TEMPLATE_BINDING` table, **one row per attached template**, with a migration;
-  the repo's manifest remains authoritative
+- Reuses `check`'s existing path argument as the directory to scan, so plain
+  `check` is unchanged.
+- Finds every `.ansari/manifest.yaml` under ROOT, at any depth and including ROOT
+  itself. Skips `.git`, `.terraform`, `node_modules`, virtualenvs and tool caches,
+  and never follows a symlinked directory.
+- One line per attached template per repo, then a by-template summary counting
+  **attachments**: a repo that attaches a template twice counts twice.
+- Exits non-zero when any repo is behind, edited, unverifiable, or has an
+  unreadable manifest. **Finding no repos also exits non-zero**, because a fleet
+  check pointed at the wrong directory must not pass.
 
-**Acceptance criteria**
+```console
+$ ansari check --fleet ~/src
+Fleet: 4 repos under ~/src
 
-- a fleet mixing template types and multi-template repos reports correctly
-- the exit code is non-zero if any repo isn't clean
-- `alembic check` stays clean
+  infra/disk-health  ansible-role 0.1.0 (current)
+  infra/network      terraform-module 0.1.0 (current)
+  orders             python-service 1.1.0 (current)
+                     k8s-scaling 0.1.0 (current), 1 file edited
+  payments           python-service 1.1.0 (current)
+
+By template:
+  ansible-role      1 attached · 0 behind · 0 edited
+  k8s-scaling       1 attached · 0 behind · 1 edited
+  python-service    2 attached · 0 behind · 0 edited
+  terraform-module  1 attached · 0 behind · 0 edited
+
+1 of 4 repos off the golden path.
+```
+
+**API: template bindings**
+
+- `template_bindings` table, **one row per attached template**: `position`
+  (manifest order, unique per project), `template`, `version`, `rendered_at`,
+  `files`, and `behind` / `edited` / `unresolved` flags. `project_id` and
+  `template` are indexed, and rows are deleted with their project.
+- `PUT /projects/{id}/template-bindings` replaces a project's whole set in manifest
+  order, and rejects a payload where two templates claim the same file.
+  Timestamps must carry a timezone.
+- `GET /projects/{id}/template-bindings`, and fleet-wide
+  `GET /template-bindings?template=…&behind=…&edited=…&unresolved=…`, both
+  paginated like every other list endpoint.
+
+**Acceptance criteria and evidence**
+
+| Criterion | Evidence |
+|---|---|
+| A fleet mixing template types and multi-template repos reports correctly | `test_the_summary_counts_attachments_per_template`, `test_a_mixed_fleet_reports_each_repo` |
+| The exit code is non-zero if any repo isn't clean | `test_a_drifted_fleet_exits_non_zero_and_names_the_problem` |
+| Unreadable manifests are reported, never skipped | `test_an_unreadable_manifest_is_reported_not_skipped` |
+| An empty scan fails | `test_finding_no_repos_fails` |
+| Bindings replace as a set and keep manifest order | `test_put_replaces_the_whole_set`, `test_put_then_get_keeps_manifest_order_and_drift_flags` |
+| The fleet listing answers "who is behind" | `test_the_fleet_listing_answers_who_is_behind` |
+| `alembic check` stays clean | CI's `alembic check`; also verified locally, with a downgrade and re-upgrade |
+
+**Found by the tests.** A fleet where no manifest could be read crashed
+`check --fleet`: with no drift reports there were no templates to summarise, and
+the summary took `max()` over an empty list. It now skips the summary, and
+`test_a_fleet_with_nothing_readable_fails_without_crashing` covers it.
+
+**Not yet wired.** Nothing reports bindings to the API yet; `check --fleet` reads
+repos directly. A `--report` option is the natural next step, and deliberately
+isn't part of this milestone.
 
 ---
 

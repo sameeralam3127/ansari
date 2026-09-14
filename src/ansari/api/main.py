@@ -9,7 +9,14 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from ansari.api.config import get_settings
-from ansari.api.routers import deployments, environments, health, pipelines, projects
+from ansari.api.routers import (
+    deployments,
+    environments,
+    health,
+    pipelines,
+    projects,
+    template_bindings,
+)
 
 settings = get_settings()
 
@@ -73,6 +80,7 @@ def create_app() -> FastAPI:
     app.include_router(environments.router)
     app.include_router(pipelines.router)
     app.include_router(deployments.router)
+    app.include_router(template_bindings.router)
 
     return app
 

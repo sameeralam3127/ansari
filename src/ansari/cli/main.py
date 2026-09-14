@@ -7,6 +7,7 @@ from ansari.scaffold import (
     ManifestError,
     ManifestTooNewError,
     RepoDriftReport,
+    RepoResult,
     TemplateDriftReport,
     TemplateError,
     VariableError,
@@ -14,6 +15,7 @@ from ansari.scaffold import (
     attach_template,
     available_templates,
     bundled_version,
+    check_fleet,
     check_repo_drift,
     default_name,
     find_bundled_template,
@@ -299,16 +301,106 @@ def _report_composite(repo: RepoDriftReport) -> None:
         typer.secho(f"  {name}  unknown to this ANSARI (cannot verify)", fg=typer.colors.RED)
 
 
+def _plural(count: int, noun: str) -> str:
+    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
+
+
+def _fleet_label(result: RepoResult, root: Path) -> str:
+    try:
+        return str(result.path.relative_to(root))
+    except ValueError:
+        return str(result.path)
+
+
+def _template_state(report: TemplateDriftReport) -> tuple[str, str]:
+    if report.behind:
+        text = f"{report.template} {report.recorded_version} → {report.current_version} (behind)"
+    else:
+        text = f"{report.template} {report.current_version} (current)"
+    edits = len(report.modified) + len(report.deleted)
+    if edits:
+        text += f", {_plural(edits, 'file')} edited"
+    return text, typer.colors.GREEN if report.clean else typer.colors.YELLOW
+
+
+def _check_fleet(root: Path) -> None:
+    if not root.is_dir():
+        raise _fail(f"Not a directory: {root}")
+
+    fleet = check_fleet(root, bundled_version)
+    if not fleet.repos:
+        raise _fail(
+            f"No ANSARI repos found under {root}.\n"
+            "A fleet check that finds nothing is more likely pointed at the wrong "
+            "directory than clean."
+        )
+
+    typer.echo(f"Fleet: {_plural(len(fleet.repos), 'repo')} under {root}")
+    typer.echo("")
+    width = max(len(_fleet_label(result, root)) for result in fleet.repos)
+    for result in fleet.repos:
+        label = _fleet_label(result, root).ljust(width)
+        if result.report is None:
+            typer.secho(f"  {label}  could not read manifest: {result.error}", fg=typer.colors.RED)
+            continue
+        lines = [_template_state(report) for report in result.report.reports]
+        lines += [
+            (f"{name} unknown to this ANSARI (cannot verify)", typer.colors.RED)
+            for name in result.report.unresolved
+        ]
+        for index, (text, colour) in enumerate(lines):
+            prefix = label if index == 0 else " " * width
+            typer.secho(f"  {prefix}  {text}", fg=colour)
+
+    summaries = fleet.by_template()
+    if summaries:
+        typer.echo("")
+        typer.echo("By template:")
+    # No summary when nothing could be read: max() of no names would raise.
+    name_width = max((len(name) for name in summaries), default=0)
+    for name, summary in summaries.items():
+        if summary.unresolved == summary.attached:
+            detail = "cannot verify"
+        else:
+            detail = f"{summary.behind} behind · {summary.edited} edited"
+            if summary.unresolved:
+                detail += f" · {summary.unresolved} cannot verify"
+        typer.echo(f"  {name.ljust(name_width)}  {summary.attached} attached · {detail}")
+
+    typer.echo("")
+    off_path = fleet.off_path
+    if not off_path:
+        typer.secho(
+            f"All {_plural(len(fleet.repos), 'repo')} on the golden path.", fg=typer.colors.GREEN
+        )
+        return
+    typer.secho(
+        f"{len(off_path)} of {_plural(len(fleet.repos), 'repo')} off the golden path.",
+        fg=typer.colors.YELLOW,
+    )
+    raise typer.Exit(1)
+
+
 @app.command()
 def check(
-    path: Annotated[Path, typer.Argument(help="Repo directory to check")] = Path("."),
+    path: Annotated[
+        Path, typer.Argument(help="Repo to check; with --fleet, the directory to scan")
+    ] = Path("."),
+    fleet: Annotated[
+        bool, typer.Option("--fleet", help="Check every ANSARI repo under PATH")
+    ] = False,
 ) -> None:
     """Report whether a repo has drifted from the templates it was scaffolded from.
 
     Read-only. Exits 1 when any attached template is behind, has local edits, or
     cannot be verified — so a repo can fail its own CI when it falls off the
-    golden path.
+    golden path. With --fleet, does the same for every repo under PATH and
+    summarises by template.
     """
+    if fleet:
+        _check_fleet(path)
+        return
+
     try:
         manifest = read_manifest(path)
     except ManifestTooNewError as exc:
