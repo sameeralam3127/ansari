@@ -516,7 +516,7 @@ repository layer: tenant scoping cannot depend on every handler remembering
 | **v0.3** | Pluggable templates — `--type`, `--var`, template-declared variables | ✅ |
 | **v0.3.1** | Render modes — alternate delimiters, verbatim copy, file modes, conditional files | ✅ |
 | **v0.4** | `k8s-scaling` sub-template + `ansari attach` | ✅ |
-| **v0.5** | `terraform-module` — skeleton, `fmt`/`validate` in CI | 📋 |
+| **v0.5** | `terraform-module` — skeleton, `fmt`/`validate` in CI | ✅ |
 | **v0.6** | `ansible-role` — standard layout, `ansible-lint`, optional molecule | 📋 |
 | **v0.7** | Fleet drift — `check --fleet` across types and multi-template repos | 📋 |
 | **v0.8** | Sync — three-way merge, one PR per stale repo | 📋 |
@@ -544,12 +544,13 @@ lower than the milestone before it.
 | Render modes — alternate delimiters, verbatim copy, file modes, conditional files | ✅ |
 | `ansari attach` — add a template to an existing repo, refusing anything it would overwrite | ✅ |
 | `k8s-scaling` template — HPA + PodDisruptionBudget; the autoscaler owns replicas | ✅ |
-| `terraform-module`, `ansible-role` templates | 📋 |
+| `terraform-module` template — aws · google · azurerm, pinned providers, credential-free CI | ✅ |
+| `ansible-role` template | 📋 |
 | `ansari check --fleet` — drift across all repos | 📋 |
 | `ansari sync --pr` — three-way merge, fleet-wide upgrade PRs | 📋 |
 | Fleet dashboard | 📋 |
 
-In place today: `mypy --strict`, `ruff` lint + format, 195 tests (API tests run
+In place today: `mypy --strict`, `ruff` lint + format, 220 tests (API tests run
 against real Postgres with the migrations applied), `alembic check` guarding
 model / migration drift, structured JSON logging with request IDs, `/healthz` +
 `/readyz`, non-root container, Trivy scanning in CI.
@@ -562,7 +563,8 @@ Listed rather than left to be discovered. Each is a real defect.
 |---|---|---|
 | **API is unauthenticated.** Any caller can `DELETE /projects/{id}`. | Not safe to expose; local/self-hosted only. | Out of scope — self-hosted only |
 | **`rollback` doesn't roll anything back.** It sets a status field; nothing reconciles. | The endpoint's name overpromises. | Honest until the deploy path exists |
-| **Terraform and Ansible templates aren't built yet.** Only python-service and k8s-scaling ship. | Infrastructure repos can't be scaffolded yet. | v0.5 – v0.6 |
+| **The Ansible template isn't built yet.** | Ansible roles can't be scaffolded yet. | v0.6 |
+| **python-service's generated workflow pins outdated GitHub Actions** (checkout v4, setup-uv v3, build-push-action v6; current majors are v7, v10, v7). | New services start on old Actions. | Next python-service bump |
 | **Moving an existing repo to python-service 1.1.0 is manual.** Repos on 1.0.0 now report *behind*, and there's no `sync` yet. | Upgrades are hand-applied. | v0.8 |
 | **`TEMPLATE_BINDING` is still one row per service.** | The API can't yet represent a multi-template repo. | v0.7 |
 | **Drift tracks file content, not permission bits.** | A `chmod` on a generated file isn't reported. | Deliberate for now |

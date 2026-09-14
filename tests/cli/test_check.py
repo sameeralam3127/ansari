@@ -201,7 +201,7 @@ def test_an_unresolved_template_exits_non_zero(tmp_path: Path) -> None:
         [
             manifest.templates[0].to_dict(),
             {
-                "template": "terraform-module",
+                "template": "from-the-future",
                 "version": "0.1.0",
                 "rendered_at": "2026-01-01T00:00:00+00:00",
                 "variables": {},
@@ -214,7 +214,7 @@ def test_an_unresolved_template_exits_non_zero(tmp_path: Path) -> None:
 
     assert result.exit_code == 1
     assert "cannot verify" in result.output.lower()
-    assert "terraform-module" in result.output
+    assert "from-the-future" in result.output
 
 
 def test_a_manifest_from_a_newer_ansari_is_refused_clearly(tmp_path: Path) -> None:

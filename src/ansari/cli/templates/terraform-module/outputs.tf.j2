@@ -1,0 +1,10 @@
+[% set kind = "labels" if provider == "google" else "tags" -%]
+output "name" {
+  description = "The name this module was configured with."
+  value       = var.name
+}
+
+output "[[ kind ]]" {
+  description = "The [[ kind ]] this module applies to its resources."
+  value       = local.[[ kind ]]
+}

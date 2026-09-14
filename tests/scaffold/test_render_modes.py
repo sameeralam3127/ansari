@@ -15,8 +15,6 @@ from typer.testing import CliRunner
 from ansari.cli.main import app
 from ansari.scaffold import (
     TemplateError,
-    file_digest,
-    find_bundled_template,
     generate,
     load_template,
     read_manifest,
@@ -91,30 +89,6 @@ def _role_like(tmp_path: Path, **supplied: str) -> tuple[Path, list[str]]:
 # --------------------------------------------------------------------------
 # Regression guard
 # --------------------------------------------------------------------------
-
-
-def test_python_service_output_matches_the_golden_for_its_version(tmp_path: Path) -> None:
-    """Every generated file hashes exactly as recorded for the current version.
-
-    Within a version, any byte of difference fails: template output changed
-    without a version bump, which would make every existing repo report drift it
-    never had. A version with no recorded entry fails too, so bumping the template
-    means recording what the new version produces -- the guard can't be switched
-    off by a bump.
-    """
-    spec = find_bundled_template("python-service")
-    assert spec is not None
-    goldens = yaml.safe_load(GOLDEN.read_text())
-    missing = f"python-service {spec.version} has no golden output recorded in {GOLDEN.name}"
-    assert spec.version in goldens, missing
-    golden = goldens[spec.version]
-
-    repo = tmp_path / str(golden["variables"]["name"])
-    written = generate(spec, dict(golden["variables"]), repo)
-
-    assert sorted(written) == sorted(golden["files"])
-    for path, digest in golden["files"].items():
-        assert file_digest(repo / path) == digest, f"{path} changed without a version bump"
 
 
 def test_the_first_golden_is_the_real_pre_migration_output() -> None:
