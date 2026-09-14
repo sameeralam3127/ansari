@@ -1,0 +1,7 @@
+# Ansible and ansible-lint local caches
+.ansible/
+*.retry
+
+# Python tooling
+__pycache__/
+.venv/

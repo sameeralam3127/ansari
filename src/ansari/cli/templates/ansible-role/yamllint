@@ -1,0 +1,25 @@
+---
+# yamllint settings, compatible with ansible-lint (which reads this file too).
+extends: default
+
+# .ansari/ is ANSARI's record of where this repository came from, not role
+# content, and it is written without a leading `---`.
+ignore: |
+  .ansari/
+
+rules:
+  line-length:
+    max: 160
+    level: warning
+  comments:
+    min-spaces-from-content: 1
+  comments-indentation: false
+  braces:
+    max-spaces-inside: 1
+  octal-values:
+    forbid-implicit-octal: true
+    forbid-explicit-octal: true
+  truthy:
+    allowed-values: ["true", "false"]
+    # GitHub Actions workflows use `on:` as a key.
+    check-keys: false

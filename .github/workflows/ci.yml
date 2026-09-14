@@ -74,8 +74,17 @@ jobs:
 
       - run: uv sync --extra dev
 
+      # ansible-lint, plus the yamllint and ansible-playbook it depends on, as
+      # isolated tools rather than project dependencies.
+      - name: Install Ansible linters
+        run: uv tool install ansible-lint --with-executables-from yamllint,ansible-core
+
       - name: Generated templates against their real tools
-        run: uv run pytest tests/scaffold/test_terraform_module.py tests/scaffold/test_attach.py -rs
+        run: >-
+          uv run pytest -rs
+          tests/scaffold/test_terraform_module.py
+          tests/scaffold/test_ansible_role.py
+          tests/scaffold/test_attach.py
 
   build-and-scan:
     needs: lint-type-test

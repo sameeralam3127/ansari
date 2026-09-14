@@ -1,0 +1,73 @@
+name: ansible-role
+version: 0.1.0
+description: Ansible role with galaxy metadata, lint configuration, CI, and optional Molecule tests.
+
+# Ansible task files are Jinja from top to bottom, so ANSARI's own markers move
+# aside and every {{ }} in the output is written exactly as it appears here.
+render:
+  delimiters: alternate
+
+variables:
+  description:
+    type: string
+    default: An Ansible role.
+    description: One-line summary for meta/main.yml and the README
+  author:
+    type: string
+    default: ""
+    description: Role author, recorded in meta/main.yml
+  namespace:
+    type: string
+    default: ""
+    description: Galaxy namespace; left out of meta/main.yml when empty
+  license:
+    type: string
+    default: MIT
+    description: License recorded in meta/main.yml
+  min_ansible_version:
+    type: string
+    default: "2.16"
+    description: Oldest ansible-core the role supports
+  platforms:
+    type: list
+    default: [Ubuntu, EL]
+    description: Galaxy platform names, each recorded with versions `all`
+  galaxy_tags:
+    type: list
+    default: []
+    description: Galaxy tags (lowercase letters and digits)
+  with_molecule:
+    type: bool
+    default: false
+    description: Scaffold a Molecule scenario, and a CI job that runs it in Docker
+
+# ansible-lint's production profile, yamllint --strict, and `molecule test` are
+# all run against this output before a version ships.
+files:
+  tasks/main.yml.j2: tasks/main.yml
+  handlers/main.yml.j2: handlers/main.yml
+  defaults/main.yml.j2: defaults/main.yml
+  meta/main.yml.j2: meta/main.yml
+  README.md.j2: README.md
+  github-workflow.yml.j2: .github/workflows/ansari.yml
+  yamllint:
+    dest: .yamllint
+    render: copy
+  ansible-lint:
+    dest: .ansible-lint
+    render: copy
+  gitignore:
+    dest: .gitignore
+    render: copy
+  molecule/molecule.yml:
+    dest: molecule/default/molecule.yml
+    render: copy
+    when: with_molecule
+  molecule/converge.yml:
+    dest: molecule/default/converge.yml
+    render: copy
+    when: with_molecule
+  molecule/verify.yml:
+    dest: molecule/default/verify.yml
+    render: copy
+    when: with_molecule

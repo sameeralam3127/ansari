@@ -1,0 +1,8 @@
+[% set role = name | replace('-', '_') -%]
+---
+# Tasks for [[ role ]]. Use fully qualified module names (ansible.builtin.*):
+# ansible-lint's production profile requires them.
+- name: Report the distribution this role is running against
+  ansible.builtin.debug:
+    msg: "{{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}"
+  when: [[ role ]]_enabled | bool
