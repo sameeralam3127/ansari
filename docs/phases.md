@@ -11,9 +11,9 @@ dependencies see [roadmap.md](roadmap.md); for how the result fits together see
 | [M2 · Pluggable templates](#m2--pluggable-templates) | v0.3 | ✅ merged in #26 | 123 | 96% |
 | [M3 · Render modes](#m3--render-modes) | v0.3.1 | ✅ merged in #28 | 144 | 97% |
 | [M4 · `k8s-scaling` + `attach`](#m4--k8s-scaling--attach) | v0.4 | ✅ merged in #29 | 178 | 98% |
-| [M5 · `terraform-module`](#m5--terraform-module) | v0.5 | ✅ built · awaiting merge | 199 | 98% |
-| [M6 · `ansible-role`](#m6--ansible-role) | v0.6 | 📋 next | | |
-| [M7 · Fleet drift](#m7--fleet-drift) | v0.7 | 📋 | | |
+| [M5 · `terraform-module`](#m5--terraform-module) | v0.5 | ✅ merged in #30 | 199 | 98% |
+| [M6 · `ansible-role`](#m6--ansible-role) | v0.6 | ✅ built · awaiting merge | 219 | 98% |
+| [M7 · Fleet drift](#m7--fleet-drift) | v0.7 | 📋 next | | |
 | [Sync](#v08--sync) | v0.8 | 📋 | | |
 | [Dashboard + demo](#v10--dashboard--demo) | v1.0 | 📋 | | |
 | [Housekeeping](#housekeeping) | — | 📋 | | |
@@ -208,7 +208,7 @@ The Helm tests skip where `helm` isn't installed.
 
 ## M5 · `terraform-module`
 
-**Status:** ✅ built on `feat/terraform-module` · awaiting merge · **Version:** v0.5
+**Status:** ✅ merged in #30 · **Version:** v0.5
 
 **Goal.** A module skeleton that is valid Terraform for every supported provider,
 with credential-free validation in its own generated CI.
@@ -266,30 +266,67 @@ python-service, and fails when a template has no recorded output at all.
 
 ## M6 · `ansible-role`
 
-**Status:** 📋 · **Version:** v0.6 · **Blocked on:** M3 · checkpoint 2
+**Status:** ✅ built on `feat/ansible-role` · awaiting merge · **Version:** v0.6
 
-**Goal.** A standard role layout, written without escaped braces.
+**Goal.** A standard role layout that passes ansible-lint's production profile,
+written without a single escaped brace.
 
 **Generated files**
 
 ```
 tasks/main.yml  handlers/main.yml  defaults/main.yml  meta/main.yml  README.md
-molecule/default/{molecule.yml, converge.yml, verify.yml}   # only if with_molecule
+.yamllint  .ansible-lint  .gitignore  .github/workflows/ansari.yml
+molecule/default/{molecule,converge,verify}.yml     # only with with_molecule=true
 ```
 
-- `render: {delimiters: alternate}`, so Ansible's `{{ }}` stays as written
-- `meta/main.yml` mirrors the `galaxy_info` convention in the linux-vitals roles:
-  `role_name`, `author`, `description`, `license`, `min_ansible_version`,
-  `platforms`, `galaxy_tags`, `dependencies`
-- molecule is **opt-in**, because the reference roles don't carry per-role molecule
+- `render: {delimiters: alternate}`: Ansible's `{{ }}` is written exactly as
+  authored, and no template source escapes a brace.
+- `meta/main.yml` follows the linux-vitals `galaxy_info` convention. The role name
+  is the repository name with hyphens turned into underscores, as Galaxy requires.
+  Free text (`author`, `description`, `license`) is JSON-quoted, so a colon or a
+  quote can't break the YAML.
+- Variables: `description`, `author`, `namespace` (left out when empty),
+  `license`, `min_ansible_version`, `platforms` (list), `galaxy_tags` (list), and
+  `with_molecule` (bool, off by default). None is required.
+- Role variables carry the role prefix (`disk_health_enabled`), which
+  ansible-lint's `var-naming` rule requires.
+- `.ansible-lint` sets the `production` profile; `.yamllint` is compatible with
+  ansible-lint and allows GitHub's `on:` key.
 
-**Generated CI:** `ansible-lint`, `yamllint`, and molecule only when scaffolded.
+**Generated CI:** `yamllint` and `ansible-lint` (settings from `.ansible-lint`)
+under `permissions: contents: read`. With `with_molecule=true`, a second job runs
+`molecule test` in Docker.
 
-**Acceptance criteria**
+**Acceptance criteria and evidence**
 
-- scaffolds and passes `ansible-lint`
-- no `{{ '{{' }}`-style escaping anywhere in the template sources
-- `with_molecule=false` generates and tracks no molecule files
+| Criterion | Evidence |
+|---|---|
+| Passes ansible-lint's production profile | `test_ansible_lint_production_profile_passes`: real ansible-lint, with and without molecule |
+| Passes `yamllint --strict` | `test_yamllint_strict_passes` |
+| No brace escaping in any template source | `test_no_template_source_escapes_its_braces` |
+| `with_molecule=false` generates and tracks no molecule files | `test_scaffolds_the_standard_role_layout_and_checks_clean` |
+| The Molecule scenario converges, is idempotent, and verifies | `test_molecule_scenario_converges_idempotently`, run locally in Docker (opt-in: `ANSARI_MOLECULE_TEST=1`) |
+| Metadata stays valid YAML with awkward values | `test_meta_survives_awkward_values` |
+
+**Found by running the real tools.** Four defects, each invisible to every check
+short of the tool itself:
+
+1. ansible-lint failed the generated workflow for lacking a `---` document start.
+2. It would also have failed the committed `.ansari/manifest.yaml` for the same
+   reason, in every role repository's own CI. `.ansible-lint` and `.yamllint` now
+   exclude `.ansari/`.
+3. `molecule test` couldn't find the role at converge. Fixed with
+   `ANSIBLE_ROLES_PATH`.
+4. Molecule then refused to start, because an author name isn't a valid Galaxy
+   namespace. Fixed with `role_name_check: 1`: the check matters for publishing,
+   not for testing.
+
+**CI.** `template-smoke` installs ansible-lint, with yamllint and ansible-core, as
+an isolated `uv tool` and runs the role tests. Molecule pulls a container image,
+so it's opt-in rather than part of every run.
+
+**Then:** M7. With four template types, no fifth is proposed, so the `sync --pr`
+tripwire isn't crossed.
 
 ---
 

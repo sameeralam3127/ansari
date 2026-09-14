@@ -12,9 +12,9 @@ acceptance criteria, what shipped) is in [phases.md](phases.md).
 | **v0.3** | M2 | Pluggable templates: `--type`, `--var`, template-declared variables | ✅ |
 | **v0.3.1** | M3 | Render modes: alternate delimiters, copy, file modes, conditional files | ✅ |
 | **v0.4** | M4 | `k8s-scaling` sub-template + `ansari attach` | ✅ |
-| **v0.5** | M5 | `terraform-module` | ✅ built · awaiting merge |
-| **v0.6** | M6 | `ansible-role` | 📋 next · after checkpoint 2 |
-| **v0.7** | M7 | Fleet drift: `check --fleet`, `TEMPLATE_BINDING` per template | 📋 |
+| **v0.5** | M5 | `terraform-module` | ✅ |
+| **v0.6** | M6 | `ansible-role` | ✅ built · awaiting merge |
+| **v0.7** | M7 | Fleet drift: `check --fleet`, `TEMPLATE_BINDING` per template | 📋 next |
 | **v0.8** | — | Sync: three-way merge, one PR per stale repo | 📋 |
 | **v1.0** | — | Dashboard + `make demo` | 📋 |
 
@@ -27,7 +27,7 @@ flowchart LR
     M1 --> M4[M4 · k8s-scaling + attach ✅]
     M2 --> M4
     M2 --> M5[M5 · terraform-module ✅]
-    M3 --> M6[M6 · ansible-role]
+    M3 --> M6[M6 · ansible-role ✅]
     M4 --> M7[M7 · check --fleet]
     M7 --> S[v0.8 · sync]
     S --> D[v1.0 · dashboard + demo]
@@ -74,18 +74,25 @@ choice gets rechecked:
 If a tripwire has been crossed at a checkpoint, **the next template type is
 paused** until the scope is cut back. Noting it and carrying on is not allowed.
 
+**Results so far**
+
+| Checkpoint | Outcome |
+|---|---|
+| **1** (after `k8s-scaling`) | Passed. Rendering the chart with real Helm caught a replicas defect before it shipped; fixed through a cross-template contract. |
+| **2** (after `terraform-module`) | Passed. Real Terraform validated all three providers and caught an indentation bug. The template needed no change to ANSARI's Python code. |
+
 ## Quality bar for every milestone
 
 - `ruff check`, `ruff format --check`, and `mypy --strict` all clean
 - coverage of `scaffold/` + `cli/` no lower than the milestone before
 - every template's output byte-identical unless its version is bumped (enforced
   by test)
-- generated output accepted by the real tool it targets (`terraform`, `helm`),
-  checked in CI's `template-smoke` job
+- generated output accepted by the real tool it targets (`terraform`, `helm`,
+  `ansible-lint`, `yamllint`), checked in CI's `template-smoke` job
 - no breaking change to the public CLI without an explicit decision
 - the README and these docs updated in the same change
 
-Coverage so far: 92% (v0.1) → 95% (v0.2) → 96% (v0.3) → 97% (v0.3.1) → 98% (v0.4) → 98% (v0.5).
+Coverage so far: 92% (v0.1) → 95% (v0.2) → 96% (v0.3) → 97% (v0.3.1) → 98% (v0.4) → 98% (v0.5) → 98% (v0.6).
 
 ## Standing decisions
 
