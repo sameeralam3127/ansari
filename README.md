@@ -149,9 +149,8 @@ Four fields, four capabilities:
 - **`schema`** → the document shape, so future changes dispatch on a declared
   version instead of guessing from the document's shape.
 - **`version`** → is this repo behind the current template?
-- **`variables`** → the *old* template can be re-rendered identically. That
-  reconstruction is the common ancestor a three-way merge needs; without it
-  there's no merge, only an overwrite.
+- **`variables`** → a newer version renders with the same inputs the repo was
+  scaffolded with, so an upgrade changes only what the template changed.
 - **`files`** → which generated files did a human edit?
 
 A repo may carry several templates, because a repo often has several
@@ -291,13 +290,20 @@ sequenceDiagram
     R-->>A: 12 of 40 on v1.2.0
     A-->>PE: 12 behind, 3 with local edits
 
-    PE->>A: ansari sync --pr
+    PE->>A: ansari sync --fleet --pr
     loop each stale repo
-        A->>A: re-render v1.2.0 and v1.5.0,<br/>three-way merge against local
+        A->>R: find what v1.2.0 generated in git history
+        A->>A: render v1.5.0, three-way merge against local
         A->>GH: open pull request
     end
-    GH-->>R: 12 PRs, conflicts flagged for review
+    GH-->>R: 9 PRs; 3 repos with conflicts left for a person
 ```
+
+A three-way merge needs what the *old* version generated, and this build only
+ships each template's current version. The manifest recorded that output's hash,
+so sync finds it in the repo's own git history. Untouched files are replaced,
+edited ones merged, deleted ones left deleted. `--pr` never commits conflict
+markers: a repo whose sync conflicts gets no pull request.
 
 This is why "add SBOM generation everywhere" is one commit plus one `ansari
 sync` here, and a quarter of work on a conventional platform. Security scanning
@@ -521,7 +527,7 @@ repository layer: tenant scoping cannot depend on every handler remembering
 | **v0.5** | `terraform-module` — skeleton, `fmt`/`validate` in CI | ✅ |
 | **v0.6** | `ansible-role` — standard layout, `ansible-lint`, optional molecule | ✅ |
 | **v0.7** | Fleet drift — `check --fleet` across types and multi-template repos | ✅ |
-| **v0.8** | Sync — three-way merge, one PR per stale repo | 📋 |
+| **v0.8** | Sync — three-way merge, one PR per stale repo | ✅ |
 | **v1.0** | Dashboard + `make demo` — seeds a fleet, drifts it, shows the report | 📋 |
 
 Each milestone ends `mypy --strict` clean, `ruff` clean, and with coverage no
@@ -550,10 +556,10 @@ lower than the milestone before it.
 | `ansible-role` template — ansible-lint production profile, yamllint, optional Molecule | ✅ |
 | `ansari check --fleet` — drift across every repo under a directory, summarised by template | ✅ |
 | API template bindings — one row per attached template; fleet-wide `GET /template-bindings` | ✅ |
-| `ansari sync --pr` — three-way merge, fleet-wide upgrade PRs | 📋 |
+| `ansari sync` — three-way merge against git history; `--dry-run`, `--fleet`, `--pr` | ✅ |
 | Fleet dashboard | 📋 |
 
-In place today: `mypy --strict`, `ruff` lint + format, 270 tests (API tests run
+In place today: `mypy --strict`, `ruff` lint + format, 310 tests (API tests run
 against real Postgres with the migrations applied), `alembic check` guarding
 model / migration drift, structured JSON logging with request IDs, `/healthz` +
 `/readyz`, non-root container, Trivy scanning in CI.
@@ -568,7 +574,7 @@ Listed rather than left to be discovered. Each is a real defect.
 | **`rollback` doesn't roll anything back.** It sets a status field; nothing reconciles. | The endpoint's name overpromises. | Honest until the deploy path exists |
 | **The Molecule scenario tests one platform** (Ubuntu 24.04), whatever `platforms` lists. | Other distributions aren't exercised. | Deliberate for now |
 | **python-service's generated workflow pins outdated GitHub Actions** (checkout v4, setup-uv v3, build-push-action v6; current majors are v7, v10, v7). | New services start on old Actions. | Next python-service bump |
-| **Moving an existing repo to python-service 1.1.0 is manual.** Repos on 1.0.0 now report *behind*, and there's no `sync` yet. | Upgrades are hand-applied. | v0.8 |
+| **Sync needs the originally generated file in git history.** A file edited before the scaffold was first committed has no merge ancestor, so its template is refused. | Such repos are upgraded by hand. | Deliberate |
 | **Nothing reports bindings to the API yet.** The table and endpoints exist; `check --fleet` reads repos directly. | The API's fleet view stays empty until something writes to it. | A future `--report` option |
 | **Drift tracks file content, not permission bits.** | A `chmod` on a generated file isn't reported. | Deliberate for now |
 | **Multi-tenancy, SSO, and billing are not built.** | Single-tenant only. | Deliberate |

@@ -20,6 +20,7 @@ flowchart LR
     tpl --> cli
     cli -->|writes| repo[Scaffolded repo\n.ansari/manifest.yaml]
     repo --> gha[Repo's own CI\ngenerated workflow]
+    cli -->|ansari sync --pr| prs[Pull requests] --> repo
 
     cli -.->|register · report drift 📋| api[ANSARI API\nFastAPI + Postgres]
     api -.-> fleet[Fleet view 📋]
@@ -40,18 +41,21 @@ hashes them, and later compares them.
 
 | Component | Location | Responsibility |
 |---|---|---|
-| CLI | `src/ansari/cli/main.py` | Thin Typer front end: `new`, `attach`, `templates`, `check`, `check --fleet`. Parses arguments, formats output, maps errors to exit codes. |
+| CLI | `src/ansari/cli/main.py` | Thin Typer front end: `new`, `attach`, `templates`, `check`, `sync`. Parses arguments, formats output, maps errors to exit codes. |
 | Template loading and writing | `src/ansari/scaffold/template.py` | Reads `template.yaml`, validates variables, resolves destinations, renders or copies files. |
 | Manifest | `src/ansari/scaffold/manifest.py` | The `.ansari/manifest.yaml` format: schema dispatch, v1 compatibility, path-overlap invariant, writing. |
 | Drift | `src/ansari/scaffold/drift.py` | Compares files against recorded hashes, per template and composed across a repo; guards writes. |
 | Attach | `src/ansari/scaffold/attach.py` | Adds a template to an existing repo: every refusal checked before any write, then recorded in the manifest. |
 | Fleet | `src/ansari/scaffold/fleet.py` | Finds every ANSARI repo under a directory and checks each; summarises by template. |
+| Sync | `src/ansari/scaffold/sync.py` | Plans and applies upgrades: replace, three-way merge against git history, or refuse. Local git only. |
+| GitHub | `src/ansari/integrations/github.py` | Opens pull requests through the `git` and `gh` CLIs. The only code that touches the network. |
 | Bundled templates | `src/ansari/cli/templates/<name>/` | One directory per template: Jinja sources plus a descriptor. |
 | API | `src/ansari/api/` | FastAPI app: projects, environments, pipeline runs, deployments, health. |
 | Persistence | `src/ansari/api/models.py`, `alembic/` | SQLAlchemy 2.0 models on Postgres; schema owned by Alembic migrations. |
 
-**Layering rule:** `scaffold/` is pure. It works only with files and paths, with
-no database, no network, and no Typer. The CLI (and later the API) call into it.
+**Layering rule:** `scaffold/` works only with files, paths, and local `git`: no
+database, no network, and no Typer. Everything that talks to GitHub lives in
+`integrations/`. The CLI (and later the API) call into it.
 Anything a future `attach` or `sync` needs to write must live in `scaffold/`, not
 in the CLI.
 
@@ -67,9 +71,12 @@ src/ansari/
 ├── scaffold/                   # pure: files in, reports out
 │   ├── attach.py               # add a template to an existing repo
 │   ├── fleet.py                # every repo under a directory
+│   ├── sync.py                 # upgrades: replace, merge, or refuse
 │   ├── template.py             # descriptor, variables, render modes, generate()
 │   ├── manifest.py             # schema v1/v2, invariants, read/write
 │   └── drift.py                # per-template + composite drift, write guard
+├── integrations/
+│   └── github.py               # pull requests via git and gh
 └── api/
     ├── main.py · config.py · db.py · pagination.py
     ├── models.py · schemas.py
@@ -172,6 +179,30 @@ Read-only and offline, like single-repo `check`. The summary counts
 **attachments** rather than repos, because each attachment can fall behind on its
 own. A scan that finds nothing exits non-zero instead of reporting a clean fleet.
 
+## Flow: `ansari sync`
+
+```mermaid
+flowchart TB
+    start([ansari sync PATH]) --> pre{git working tree, clean,\nevery template resolvable?}
+    pre -->|no| stop[exit 1, nothing written]
+    pre -->|yes| each[each template that is behind]
+    each --> render[render the new version\nwith the recorded variables]
+    render --> file{each file, by recorded hash}
+    file -->|untouched| replace[replace]
+    file -->|edited| base[find the original\nin git history]
+    base -->|found| merge[git merge-file]
+    base -->|not found| refuse[refuse the template]
+    file -->|deleted| leave[leave deleted]
+    replace --> apply[write files,\nrecord the new version]
+    merge --> apply
+    leave --> apply
+```
+
+Planning does all the work, merges included, and a dry run stops there, so it
+reports exactly what a real run would do. `--pr` applies only a plan with no
+refusals and no conflicts, then commits, pushes, and opens a pull request through
+`integrations/github.py`.
+
 ## The manifest
 
 ### Schemas
@@ -251,7 +282,7 @@ repo. `ansari new` refuses it, and `ansari templates` labels it *attach only*.
 
 For each file an entry records:
 
-| On disk | Classified as | What a future `sync` does |
+| On disk | Classified as | What `sync` does |
 |---|---|---|
 | hash matches | unchanged | replace outright |
 | hash differs | modified | three-way merge, surface conflicts |
@@ -333,4 +364,3 @@ flowchart LR
 | Change | Why | When |
 |---|---|---|
 | Move templates to `src/ansari/templates/` | the API will read them too; they don't belong to `cli` | housekeeping |
-| `src/ansari/integrations/` (GitHub API) | `sync --pr` | v0.8 |
