@@ -1,0 +1,46 @@
+[% set role = name | replace('-', '_') -%]
+# [[ name ]]
+
+[[ description ]]
+
+An Ansible role scaffolded by `ansari new --type ansible-role`.
+
+## Requirements
+
+Ansible [[ min_ansible_version ]] or newer.
+
+## Role variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `[[ role ]]_enabled` | `true` | Set to `false` to skip every task in this role. |
+
+Prefix new variables with `[[ role ]]_`: ansible-lint's `var-naming` rule
+requires role variables to carry the role name.
+
+## Example playbook
+
+```yaml
+- name: Apply [[ role ]]
+  hosts: all
+  roles:
+    - role: [[ name ]]
+```
+
+## Platforms
+[% for platform in platforms %]
+- [[ platform ]][% endfor %]
+
+## Development
+
+```bash
+yamllint .
+ansible-lint        # production profile, configured in .ansible-lint
+[% if with_molecule %]molecule test       # converge, idempotence, and verify in Docker
+[% endif %]```
+
+## Staying current
+
+This repository carries `.ansari/manifest.yaml`. `ansari check` reports when the
+template it came from has moved on and which generated files have been edited
+here.

@@ -14,7 +14,7 @@ flowchart LR
         t1[python-service ✅]
         t2[k8s-scaling ✅]
         t3[terraform-module ✅]
-        t4[ansible-role 📋]
+        t4[ansible-role ✅]
     end
 
     tpl --> cli
@@ -60,7 +60,8 @@ src/ansari/
 │   └── templates/
 │       ├── python-service/     # template.yaml + Jinja sources
 │       ├── k8s-scaling/        # attach-only: HPA, PDB, autoscaling.yaml
-│       └── terraform-module/   # aws · google · azurerm module skeleton
+│       ├── terraform-module/   # aws · google · azurerm module skeleton
+│       └── ansible-role/       # galaxy role, lint configs, optional molecule
 ├── scaffold/                   # pure: files in, reports out
 │   ├── attach.py               # add a template to an existing repo
 │   ├── template.py             # descriptor, variables, render modes, generate()
@@ -294,8 +295,8 @@ flowchart LR
   is, so a missing database can never silently remove coverage.
 - `alembic check` fails the build if models and migrations diverge.
 - **`template-smoke`** scaffolds templates and runs their real tools on the
-  output: `terraform fmt`, `init -backend=false` and `validate` (aws), and
-  `helm lint` / `helm template`. A template that renders but wouldn't validate
+  output: `terraform fmt`, `init -backend=false` and `validate` (aws),
+  `helm lint` / `helm template`, and `ansible-lint` / `yamllint --strict`. A template that renders but wouldn't validate
   fails here rather than in a user's repo.
 - Every bundled template's output is pinned per version in
   `tests/fixtures/golden/`. Output that changes without a version bump fails,

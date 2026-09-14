@@ -1,0 +1,16 @@
+[% set role = name | replace('-', '_') -%]
+---
+galaxy_info:
+  role_name: [[ role ]]
+[% if namespace %]  namespace: [[ namespace ]]
+[% endif %]  author: [[ author | tojson ]]
+  description: [[ description | tojson ]]
+  license: [[ license | tojson ]]
+  min_ansible_version: [[ min_ansible_version | tojson ]]
+  platforms:[% for platform in platforms %]
+    - name: [[ platform ]]
+      versions:
+        - all[% else %] [][% endfor %]
+  galaxy_tags:[% for tag in galaxy_tags %]
+    - [[ tag ]][% else %] [][% endfor %]
+dependencies: []

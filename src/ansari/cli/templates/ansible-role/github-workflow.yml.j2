@@ -1,0 +1,45 @@
+---
+name: ansari
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Install linters
+        run: pip install "ansible-lint>=25" "yamllint>=1.35"
+
+      - name: yamllint
+        run: yamllint .
+
+      # Settings, including the production profile, come from .ansible-lint.
+      - name: ansible-lint
+        run: ansible-lint
+[% if with_molecule %]
+  molecule:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Install Molecule
+        run: pip install molecule "molecule-plugins[docker]" ansible-core
+
+      # Create, converge, idempotence, verify, destroy -- in Docker.
+      - name: molecule test
+        run: molecule test
+[% endif -%]

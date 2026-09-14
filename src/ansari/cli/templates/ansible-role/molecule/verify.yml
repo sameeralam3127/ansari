@@ -1,0 +1,11 @@
+---
+# Replace this with assertions about the state the role manages: a package
+# installed, a service running, a file in place.
+- name: Verify
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Check the role converged
+      ansible.builtin.assert:
+        that:
+          - true

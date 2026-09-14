@@ -1,0 +1,5 @@
+[% set role = name | replace('-', '_') -%]
+---
+# Defaults for [[ role ]]. Prefix every variable with `[[ role ]]_`:
+# ansible-lint's var-naming rule requires role variables to carry the role name.
+[[ role ]]_enabled: true

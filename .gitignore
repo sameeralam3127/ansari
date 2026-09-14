@@ -33,3 +33,6 @@ htmlcov/
 
 # Personal notes, not part of the published project
 LEARNING.md
+
+# ansible-lint creates this cache in the directory it runs from
+.ansible/

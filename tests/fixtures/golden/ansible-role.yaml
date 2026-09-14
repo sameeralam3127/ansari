@@ -1,0 +1,30 @@
+# GOLDEN OUTPUT -- what each ansible-role version generates.
+#
+# A test regenerates the current version with these variables and compares every
+# hash: any byte of difference within a version fails, and a version with no
+# entry fails too. Never edit an existing entry to make a test pass; bump the
+# template and add one.
+
+0.1.0:
+  files:
+    .ansible-lint: sha256:b049160833378bf8290d220339f02e507ec594b5230c50b0c2feef283d74d000
+    .github/workflows/ansari.yml: sha256:f66ec940fd9952796b3e4bc5412afc55f0aad39c282dfce3baae7c01a8364566
+    .gitignore: sha256:1cbf6146597a052f6e0a1f63e1b974986dbae80e50fb170326c1bce8409a1a9b
+    .yamllint: sha256:60f3ca7a659182477de98465b7422a2f53b3f6a19dc6043888c4311ae216c060
+    README.md: sha256:d82af3ec17503184ebf05a1fb94370a97c6d56e0c3a313a5b51e5cd6b2ccc5a9
+    defaults/main.yml: sha256:78d602216ef016279abf58a7bef99277de331d3288ee4d0ac7935395a6c6d0fb
+    handlers/main.yml: sha256:75f64f2073dcfbd60bfd1dd743700d4ef75c162e9c8a791fb2eeaa74e685f371
+    meta/main.yml: sha256:ed6298303c19baed5ab5c11cdb9f83464282bfd138a3617a31dd5863651ef798
+    tasks/main.yml: sha256:9c4428c8f550efa30e07ff3674ae189635bdb423fd00cfec92d92e5d2e6735f8
+  variables:
+    author: ''
+    description: An Ansible role.
+    galaxy_tags: []
+    license: MIT
+    min_ansible_version: '2.16'
+    name: disk-health
+    namespace: ''
+    platforms:
+    - Ubuntu
+    - EL
+    with_molecule: false

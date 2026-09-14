@@ -1,0 +1,10 @@
+---
+# ansible-lint settings. `production` is the strictest profile: the one a role
+# has to pass to be published.
+profile: production
+offline: true
+
+# .ansari/ is ANSARI's record of where this repository came from, not role
+# content, and it is written without a leading `---`.
+exclude_paths:
+  - .ansari/

@@ -1,0 +1,21 @@
+---
+# Warn rather than fail when the role has no Galaxy namespace. Molecule would
+# otherwise refuse to start: it derives a fully qualified name from `namespace`,
+# falling back to `author`, which is rarely a valid Galaxy name. That matters
+# for publishing, not for testing.
+role_name_check: 1
+driver:
+  name: docker
+platforms:
+  - name: instance
+    image: geerlingguy/docker-ubuntu2404-ansible:latest
+    pre_build_image: true
+provisioner:
+  name: ansible
+  env:
+    # The role under test is this repository itself. Molecule doesn't put its
+    # parent directory on the roles path, so converge.yml couldn't find the role
+    # by name without this.
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/.."
+verifier:
+  name: ansible
