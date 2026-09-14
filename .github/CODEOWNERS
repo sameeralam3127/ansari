@@ -1,0 +1,4 @@
+# Default owners for everything in the repo, unless a later match takes
+# precedence. Requires branch protection's "Require review from Code
+# Owners" to be enabled to have any effect (see .github/settings.yml).
+*       @sameeralam3127
