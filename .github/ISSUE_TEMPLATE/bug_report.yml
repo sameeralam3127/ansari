@@ -1,0 +1,76 @@
+name: Bug report
+description: Report something that isn't working as expected.
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report! ANSARI is a
+        learning/educational project maintained on a best-effort basis, but
+        clear bug reports genuinely help.
+
+        **Please do not use this form for security vulnerabilities** — see
+        [SECURITY.md](../SECURITY.md) for how to report those privately.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: A clear and concise description of the bug.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Include the exact `ansari` commands you ran, if applicable.
+      placeholder: |
+        1. `ansari new payment-api --type python-service`
+        2. `ansari check`
+        3. See error...
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: >-
+        Paste any relevant output/traceback. This will be rendered as code,
+        so no need for backticks. Please redact any secrets/credentials.
+      render: shell
+
+  - type: input
+    id: version
+    attributes:
+      label: ANSARI version / commit
+      placeholder: "e.g. 0.1.0 or commit SHA"
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: "OS, Python version, Docker version, etc."
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues and this hasn't already been reported.
+          required: true
+        - label: This is not a security vulnerability (those go to SECURITY.md).
+          required: true

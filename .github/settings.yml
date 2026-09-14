@@ -1,0 +1,38 @@
+# Repository configuration as code.
+#
+# This file is read by the "Settings" GitHub App
+# (https://github.com/apps/settings). It has no effect unless that app is
+# installed on this repository — if it isn't, apply the equivalent rules
+# manually under Settings → Branches → Branch protection rules, or via the
+# GitHub API/CLI (`gh api repos/:owner/:repo/branches/main/protection ...`).
+#
+# It documents the intended, minimal branch protection policy for `main`
+# even where the app isn't installed.
+
+repository:
+  has_issues: true
+  has_wiki: false
+  has_projects: false
+  delete_branch_on_merge: true
+  allow_squash_merge: true
+  allow_merge_commit: false
+  allow_rebase_merge: false
+
+branches:
+  - name: main
+    protection:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+        dismiss_stale_reviews: true
+        require_code_owner_reviews: true
+      required_status_checks:
+        strict: true
+        contexts:
+          - lint-type-test
+          - build-and-scan
+      enforce_admins: true
+      required_linear_history: true
+      required_conversation_resolution: true
+      restrictions: null
+      allow_force_pushes: false
+      allow_deletions: false

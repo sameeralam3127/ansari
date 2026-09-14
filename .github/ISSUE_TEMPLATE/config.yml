@@ -1,0 +1,10 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/sameeralam3127/ansari/security/advisories/new
+    about: >-
+      Please report security vulnerabilities privately via a GitHub Security
+      Advisory rather than a public issue. See SECURITY.md for details.
+  - name: Ask a question / start a discussion
+    url: https://github.com/sameeralam3127/ansari/discussions
+    about: Have a question about using ANSARI? Start a discussion instead of an issue.

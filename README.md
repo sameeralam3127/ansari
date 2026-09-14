@@ -548,3 +548,22 @@ Trivy · Terraform · Ansible
 make setup    # install deps + pre-commit hooks
 make check    # lint + typecheck + test
 ```
+
+## Contributing
+
+ANSARI is a **learning and educational project** — a reference
+implementation of platform-engineering patterns, shared free for anyone to
+use, study, fork, and build on. Contributions, issue reports, and questions
+are welcome. See:
+
+- [`CONTRIBUTING.md`](.github/CONTRIBUTING.md) — dev setup, PR process,
+  branch protection expectations
+- [`CODE_OF_CONDUCT.md`](.github/CODE_OF_CONDUCT.md) — community standards
+- [`SECURITY.md`](.github/SECURITY.md) — how to report vulnerabilities
+  privately (please don't open a public issue for those)
+
+## License
+
+MIT — see [`LICENSE`](LICENSE). Free to use, modify, and redistribute; the
+"Known limitations" section above and `SECURITY.md` spell out where extra
+care is needed before using this beyond learning/experimentation.
