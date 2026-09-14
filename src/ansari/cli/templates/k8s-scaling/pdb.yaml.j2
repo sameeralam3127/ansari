@@ -1,0 +1,14 @@
+{{- /* Managed by ANSARI (k8s-scaling). */}}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: [[ name ]]
+  labels:
+    app: [[ name ]]
+spec:
+  # maxUnavailable rather than minAvailable: with minAvailable at or above the
+  # running replica count, a node drain can never evict a pod and stalls.
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: [[ name ]]

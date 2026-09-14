@@ -1,0 +1,40 @@
+# GOLDEN OUTPUT -- what each python-service version generates.
+#
+# A test regenerates the current version with these variables and compares every
+# hash. Any byte of difference within a version fails (template output changed
+# without a version bump, so existing repos would report drift they never had),
+# and a version with no entry here fails too, so a bump must record its output.
+#
+# Never edit an existing entry to make a test pass; bump the template and add one.
+# 1.0.0 is the real pre-migration output; a test holds it equal to the hashes in
+# manifest_v1_python_service.yaml.
+
+"1.0.0":
+  variables:
+    database: postgres
+    language: python
+    name: legacy-svc
+  files:
+    .github/workflows/ansari.yml: sha256:1f6bbaf56c827ee033668736a0bd978a22ce2ff74d8fe318d6bf4c1e67ef9cd4
+    Dockerfile: sha256:528f4577b477e0fe66ee30b4c7be3f553499a348109d68cf0c6d328c2d40a93e
+    README.md: sha256:58cab3e1c9226e7467e878e9fcf944ff1637e74af9b8d71f50b9031e648f224f
+    helm/legacy-svc/Chart.yaml: sha256:c4c3480eca7334e52371e1e2911aba94186c38597d644724f19b973412daf294
+    helm/legacy-svc/templates/deployment.yaml: sha256:e11f8f9a358530eb022c0040848a320138b1dad8a5dd207b0a0eef0a0ad9b34a
+    helm/legacy-svc/templates/service.yaml: sha256:0407383cdd31fe79da69e28abc0760cf6362e32fa60379ff8af12320b9ad925b
+    helm/legacy-svc/values.yaml: sha256:ec47914b1aa854929d7ac1d9679b7a3ec77ae7becb8daf9545fb866d613750e9
+
+# 1.1.0: the Deployment omits `replicas` while k8s-scaling's autoscaling.yaml is
+# in the chart. Only deployment.yaml and values.yaml differ from 1.0.0.
+"1.1.0":
+  variables:
+    database: postgres
+    language: python
+    name: legacy-svc
+  files:
+    .github/workflows/ansari.yml: sha256:1f6bbaf56c827ee033668736a0bd978a22ce2ff74d8fe318d6bf4c1e67ef9cd4
+    Dockerfile: sha256:528f4577b477e0fe66ee30b4c7be3f553499a348109d68cf0c6d328c2d40a93e
+    README.md: sha256:58cab3e1c9226e7467e878e9fcf944ff1637e74af9b8d71f50b9031e648f224f
+    helm/legacy-svc/Chart.yaml: sha256:c4c3480eca7334e52371e1e2911aba94186c38597d644724f19b973412daf294
+    helm/legacy-svc/templates/deployment.yaml: sha256:de4b9adde28e5d523c08587140dd7470db5700681d65841531955230e943f790
+    helm/legacy-svc/templates/service.yaml: sha256:0407383cdd31fe79da69e28abc0760cf6362e32fa60379ff8af12320b9ad925b
+    helm/legacy-svc/values.yaml: sha256:e5349c4dba3d77560ab840c8c92f5e511ca7bde15a96cdab3ba9885538865882

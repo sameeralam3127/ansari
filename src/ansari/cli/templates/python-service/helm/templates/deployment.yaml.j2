@@ -5,7 +5,12 @@ metadata:
   labels:
     app: {{ name }}
 spec:
+  # Omitted while k8s-scaling's autoscaling.yaml is in this chart: the
+  # HorizontalPodAutoscaler then owns the replica count, and a replicas value
+  # here would reset it on every `helm upgrade`.
+  {{ '{{' }}- if not (.Files.Get "autoscaling.yaml") {{ '}}' }}
   replicas: {{ '{{' }} .Values.replicaCount {{ '}}' }}
+  {{ '{{' }}- end {{ '}}' }}
   selector:
     matchLabels:
       app: {{ name }}

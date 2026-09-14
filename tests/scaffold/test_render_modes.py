@@ -23,6 +23,7 @@ from ansari.scaffold import (
 )
 
 FIXTURE = Path(__file__).resolve().parent.parent / "fixtures" / "manifest_v1_python_service.yaml"
+GOLDEN = Path(__file__).resolve().parent.parent / "fixtures" / "golden" / "python-service.yaml"
 runner = CliRunner()
 
 
@@ -92,25 +93,35 @@ def _role_like(tmp_path: Path, **supplied: str) -> tuple[Path, list[str]]:
 # --------------------------------------------------------------------------
 
 
-def test_python_service_output_is_unchanged_by_the_new_pipeline(tmp_path: Path) -> None:
-    """Every generated file hashes exactly as the golden pre-migration manifest says.
+def test_python_service_output_matches_the_golden_for_its_version(tmp_path: Path) -> None:
+    """Every generated file hashes exactly as recorded for the current version.
 
-    If this fails while python-service is still on the fixture's version, template
-    output changed without a version bump -- which is exactly the bug that would
-    make every existing repo report drift it never had.
+    Within a version, any byte of difference fails: template output changed
+    without a version bump, which would make every existing repo report drift it
+    never had. A version with no recorded entry fails too, so bumping the template
+    means recording what the new version produces -- the guard can't be switched
+    off by a bump.
     """
-    golden = yaml.safe_load(FIXTURE.read_text())
     spec = find_bundled_template("python-service")
     assert spec is not None
-    if spec.version != golden["version"]:
-        pytest.skip("python-service has moved past the golden fixture's version")
+    goldens = yaml.safe_load(GOLDEN.read_text())
+    missing = f"python-service {spec.version} has no golden output recorded in {GOLDEN.name}"
+    assert spec.version in goldens, missing
+    golden = goldens[spec.version]
 
-    repo = tmp_path / "legacy-svc"
+    repo = tmp_path / str(golden["variables"]["name"])
     written = generate(spec, dict(golden["variables"]), repo)
 
     assert sorted(written) == sorted(golden["files"])
     for path, digest in golden["files"].items():
         assert file_digest(repo / path) == digest, f"{path} changed without a version bump"
+
+
+def test_the_first_golden_is_the_real_pre_migration_output() -> None:
+    """The oldest entry is anchored to captured bytes, not typed in by hand."""
+    goldens = yaml.safe_load(GOLDEN.read_text())
+    fixture = yaml.safe_load(FIXTURE.read_text())
+    assert goldens[fixture["version"]]["files"] == fixture["files"]
 
 
 # --------------------------------------------------------------------------

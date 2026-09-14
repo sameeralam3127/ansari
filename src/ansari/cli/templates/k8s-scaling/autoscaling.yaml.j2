@@ -1,0 +1,8 @@
+# Managed by ANSARI (k8s-scaling). The autoscaler reads its numbers from here.
+#
+# This file is also a signal: the python-service Deployment template omits
+# spec.replicas while it exists, so the autoscaler owns the replica count rather
+# than having it reset to replicaCount on every `helm upgrade`.
+minReplicas: [[ min_replicas ]]
+maxReplicas: [[ max_replicas ]]
+targetCPUUtilizationPercentage: [[ target_cpu_utilization ]]
