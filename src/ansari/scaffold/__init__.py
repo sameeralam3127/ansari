@@ -41,6 +41,16 @@ from ansari.scaffold.manifest import (
     read_manifest,
     write_manifest,
 )
+from ansari.scaffold.sync import (
+    FileAction,
+    SyncError,
+    SyncPlan,
+    TemplatePlan,
+    apply_sync,
+    carry_variables,
+    ensure_syncable,
+    plan_sync,
+)
 from ansari.scaffold.template import (
     Delimiters,
     FileSpec,
@@ -57,6 +67,14 @@ from ansari.scaffold.template import (
 )
 
 __all__ = [
+    "FileAction",
+    "SyncError",
+    "SyncPlan",
+    "TemplatePlan",
+    "apply_sync",
+    "carry_variables",
+    "ensure_syncable",
+    "plan_sync",
     "FleetReport",
     "RepoResult",
     "TemplateSummary",

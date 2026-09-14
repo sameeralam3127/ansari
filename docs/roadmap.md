@@ -14,9 +14,9 @@ acceptance criteria, what shipped) is in [phases.md](phases.md).
 | **v0.4** | M4 | `k8s-scaling` sub-template + `ansari attach` | ✅ |
 | **v0.5** | M5 | `terraform-module` | ✅ |
 | **v0.6** | M6 | `ansible-role` | ✅ |
-| **v0.7** | M7 | Fleet drift: `check --fleet`, `TEMPLATE_BINDING` per template | ✅ built · awaiting merge |
-| **v0.8** | — | Sync: three-way merge, one PR per stale repo | 📋 next |
-| **v1.0** | — | Dashboard + `make demo` | 📋 |
+| **v0.7** | M7 | Fleet drift: `check --fleet`, `TEMPLATE_BINDING` per template | ✅ |
+| **v0.8** | — | Sync: three-way merge, one PR per stale repo | ✅ built · awaiting merge |
+| **v1.0** | — | Dashboard + `make demo` | 📋 next |
 
 ## What depends on what
 
@@ -29,7 +29,7 @@ flowchart LR
     M2 --> M5[M5 · terraform-module ✅]
     M3 --> M6[M6 · ansible-role ✅]
     M4 --> M7[M7 · check --fleet ✅]
-    M7 --> S[v0.8 · sync]
+    M7 --> S[v0.8 · sync ✅]
     S --> D[v1.0 · dashboard + demo]
 
     CP1{{checkpoint 1}}:::cp
@@ -81,6 +81,8 @@ paused** until the scope is cut back. Noting it and carrying on is not allowed.
 | **1** (after `k8s-scaling`) | Passed. Rendering the chart with real Helm caught a replicas defect before it shipped; fixed through a cross-template contract. |
 | **2** (after `terraform-module`) | Passed. Real Terraform validated all three providers and caught an indentation bug. The template needed no change to ANSARI's Python code. |
 
+With v0.8 shipped, `sync --pr` exists, so the second tripwire can no longer be crossed.
+
 ## Quality bar for every milestone
 
 - `ruff check`, `ruff format --check`, and `mypy --strict` all clean
@@ -92,7 +94,7 @@ paused** until the scope is cut back. Noting it and carrying on is not allowed.
 - no breaking change to the public CLI without an explicit decision
 - the README and these docs updated in the same change
 
-Coverage so far: 92% (v0.1) → 95% (v0.2) → 96% (v0.3) → 97% (v0.3.1) → 98% (v0.4) → 98% (v0.5) → 98% (v0.6) → 97% (v0.7).
+Coverage so far: 92% (v0.1) → 95% (v0.2) → 96% (v0.3) → 97% (v0.3.1) → 98% (v0.4) → 98% (v0.5) → 98% (v0.6) → 97% (v0.7) → 97% (v0.8).
 
 ## Standing decisions
 
@@ -101,6 +103,8 @@ Coverage so far: 92% (v0.1) → 95% (v0.2) → 96% (v0.3) → 97% (v0.3.1) → 9
 | `--language` / `--database` aliases | kept **indefinitely**, with a warning | python-service is no longer the dominant template type in practice |
 | `terraform plan` in generated CI | ships **commented out and labelled** | never by default: a module can't plan without credentials |
 | Alternate delimiters | `[[ ]]` `[% %]` `[# #]` | — |
+| Sync's merge ancestor | the originally generated file, found in git history by its recorded hash | if templates ever ship their old versions |
+| `sync --pr` and conflicts | no pull request while any template is refused or conflicted; conflict markers are never committed | — |
 | Terraform provider pins | each provider at its current major: aws `~> 6.0`, google `~> 8.0`, azurerm `~> 5.0` | when a provider ships a new major |
 | `k8s-scaling` shape | composable sub-template, versioned independently | — |
 | Attach-only templates | `standalone: false` in the descriptor; `ansari new` refuses them | — |

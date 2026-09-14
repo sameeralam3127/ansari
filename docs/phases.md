@@ -13,9 +13,9 @@ dependencies see [roadmap.md](roadmap.md); for how the result fits together see
 | [M4 · `k8s-scaling` + `attach`](#m4--k8s-scaling--attach) | v0.4 | ✅ merged in #29 | 178 | 98% |
 | [M5 · `terraform-module`](#m5--terraform-module) | v0.5 | ✅ merged in #30 | 199 | 98% |
 | [M6 · `ansible-role`](#m6--ansible-role) | v0.6 | ✅ merged in #31 | 219 | 98% |
-| [M7 · Fleet drift](#m7--fleet-drift) | v0.7 | ✅ built · awaiting merge | 236 | 97% |
-| [Sync](#v08--sync) | v0.8 | 📋 next | | |
-| [Dashboard + demo](#v10--dashboard--demo) | v1.0 | 📋 | | |
+| [M7 · Fleet drift](#m7--fleet-drift) | v0.7 | ✅ merged in #32 | 236 | 97% |
+| [Sync](#v08--sync) | v0.8 | ✅ built · awaiting merge | 273 | 97% |
+| [Dashboard + demo](#v10--dashboard--demo) | v1.0 | 📋 next | | |
 | [Housekeeping](#housekeeping) | — | 📋 | | |
 
 The API suite adds 17 tests on top of these counts. They run against Postgres
@@ -332,7 +332,7 @@ tripwire isn't crossed.
 
 ## M7 · Fleet drift
 
-**Status:** ✅ built on `feat/fleet-drift` · awaiting merge · **Version:** v0.7
+**Status:** ✅ merged in #32 · **Version:** v0.7
 
 **Goal.** Answer "who is behind, and on what?" across many repos, from the CLI and
 in the API.
@@ -407,13 +407,67 @@ isn't part of this milestone.
 
 ## v0.8 · Sync
 
-**Status:** 📋
+**Status:** ✅ built on `feat/sync` · awaiting merge
 
-- re-render the recorded version (from recorded variables) and the current one
-- three-way merge against the local file; untouched files replaced, edited files
-  merged with conflicts surfaced, deleted files left alone
-- `ansari sync --pr`: one pull request per stale repo via `src/ansari/integrations/`
-- refuses against unresolved entries, with no override
+**Goal.** Upgrade repos to the current template versions without discarding what
+people changed: the step that makes drift detection worth having.
+
+**`ansari sync [PATH] [--dry-run] [--allow-dirty] [--fleet] [--pr]`**
+
+For every attached template that is behind, each generated file is handled by
+what its recorded hash says:
+
+| On disk | Sync does |
+|---|---|
+| untouched | replaces it with the new version's output |
+| edited | three-way merges it; overlapping edits get conflict markers |
+| deleted | leaves it deleted, and `check` keeps reporting it |
+| new in this version | adds it |
+| dropped by this version, untouched | removes it |
+| dropped by this version, edited | keeps it, and stops tracking it |
+
+```console
+$ ansari sync --dry-run
+python-service  1.0.0 → 1.1.0
+  updated      helm/payments/templates/deployment.yaml
+  merged       helm/payments/values.yaml
+
+Dry run: nothing written.
+```
+
+**Where the merge ancestor comes from.** A three-way merge needs what the *old*
+version generated, but this build only ships each template's current version.
+The manifest recorded that output's sha256, so sync finds it in the repo's own git
+history: the committed blob with that hash. The new version renders with the
+variables the repo was scaffolded with, and new variables take their defaults.
+
+**Refusals.** A template is refused, with nothing written for it, when an edited
+file has no ancestor in history, a new file would land on an untracked one, a
+destination belongs to another template, or a newly required variable has no
+value. The whole sync refuses when the repo isn't a git working tree, has
+uncommitted changes (unless `--allow-dirty`), or carries a template this build
+can't resolve.
+
+**`--pr`** commits on `ansari/sync-<template>-<version>`, pushes, and opens a pull
+request through the `git` and `gh` CLIs, which carry the user's credentials, so
+ANSARI holds no token. It opens nothing while a template is refused or
+conflicted, so conflict markers are never committed. `--fleet` syncs every repo
+under PATH, one pull request each.
+
+**Acceptance criteria and evidence**
+
+| Criterion | Evidence |
+|---|---|
+| A python-service 1.0.0 repo upgrades to 1.1.0, keeping a local edit | `test_a_python_service_1_0_0_repo_upgrades_to_the_current_version`, on a 1.0.0 reconstructed byte for byte against the golden hashes |
+| Untouched files replaced, edited files merged, deleted files left deleted | `test_untouched_files_are_replaced_and_the_version_moves`, `test_an_edited_file_is_merged_keeping_both_changes`, `test_a_deleted_file_stays_deleted` |
+| Overlapping edits get conflict markers and a non-zero exit | `test_overlapping_edits_get_conflict_markers`, `test_a_conflict_exits_non_zero` |
+| Every refusal writes nothing | `test_an_edit_with_no_ancestor_in_history_refuses_the_template`, `test_an_untracked_file_in_the_way_of_a_new_one_refuses` |
+| `--dry-run` writes nothing | `test_dry_run_writes_nothing` |
+| `--pr` opens one pull request per repo, and none with conflicts | `test_pr_commits_on_a_branch_and_opens_a_pull_request`, `test_fleet_pr_opens_one_pull_request_per_repo`, `test_pr_is_not_opened_when_there_are_conflicts` |
+| Refuses against unresolved entries, with no override | `test_an_unresolved_template_refuses_the_whole_sync` |
+
+**Limit.** A file edited before the scaffold was first committed has no ancestor in
+history, so its template is refused and that upgrade is done by hand.
 
 ---
 
