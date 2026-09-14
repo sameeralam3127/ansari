@@ -250,6 +250,33 @@ rename its own output would break the destination paths the manifest tracks.
 Unknown variables are rejected rather than ignored, so `--var databse=none`
 fails loudly instead of quietly scaffolding the default.
 
+### Render modes
+
+A template also decides how each of its files is written:
+
+```yaml
+render:
+  delimiters: alternate        # ANSARI uses [[ ]] [% %] [# #]; {{ }} passes through
+files:
+  tasks/main.yml.j2: roles/[[ name ]]/tasks/main.yml
+  files/preflight.sh:
+    dest: roles/[[ name ]]/files/preflight.sh
+    render: copy               # bytes written untouched, never rendered
+    mode: "0755"               # quoted: YAML reads an unquoted 0755 as 493
+  molecule/molecule.yml.j2:
+    dest: roles/[[ name ]]/molecule/default/molecule.yml
+    when: with_molecule        # a declared bool; omitted, and untracked, unless true
+```
+
+`alternate` exists for output that is itself Jinja. Without it every
+`{{ ansible_facts }}` in an Ansible task file would need escaping, and the source a
+reviewer reads would stop resembling the file it produces. Comment markers move
+too, since a `{# … #}` left alone would be silently eaten.
+
+Every destination is resolved and checked before anything is written: a path
+outside the repo, two sources writing one file, or a missing source is refused
+with nothing on disk.
+
 ## The upgrade flow
 
 ```mermaid
@@ -487,7 +514,7 @@ repository layer: tenant scoping cannot depend on every handler remembering
 |---|---|---|
 | **v0.2** | Multi-template manifest — schema v2, backward-compatible reader, composite drift | ✅ |
 | **v0.3** | Pluggable templates — `--type`, `--var`, template-declared variables | ✅ |
-| **v0.3.1** | Render modes — per-template delimiters, verbatim copy, file modes | 🔨 |
+| **v0.3.1** | Render modes — alternate delimiters, verbatim copy, file modes, conditional files | ✅ |
 | **v0.4** | `k8s-scaling` sub-template + `ansari attach` | 📋 |
 | **v0.5** | `terraform-module` — skeleton, `fmt`/`validate` in CI | 📋 |
 | **v0.6** | `ansible-role` — standard layout, `ansible-lint`, optional molecule | 📋 |
@@ -514,12 +541,13 @@ lower than the milestone before it.
 | Pluggable template abstraction — `ansari new --type`, `--var` | ✅ |
 | Templates declare their own variables — no CLI edit per type | ✅ |
 | `ansari templates` — list what this build ships | ✅ |
+| Render modes — alternate delimiters, verbatim copy, file modes, conditional files | ✅ |
 | `terraform-module`, `ansible-role`, `k8s-scaling` templates | 📋 |
 | `ansari check --fleet` — drift across all repos | 📋 |
 | `ansari sync --pr` — three-way merge, fleet-wide upgrade PRs | 📋 |
 | Fleet dashboard | 📋 |
 
-In place today: `mypy --strict`, `ruff` lint + format, 123 tests (API tests run
+In place today: `mypy --strict`, `ruff` lint + format, 161 tests (API tests run
 against real Postgres with the migrations applied), `alembic check` guarding
 model / migration drift, structured JSON logging with request IDs, `/healthz` +
 `/readyz`, non-root container, Trivy scanning in CI.
@@ -534,7 +562,16 @@ Listed rather than left to be discovered. Each is a real defect.
 | **`rollback` doesn't roll anything back.** It sets a status field; nothing reconciles. | The endpoint's name overpromises. | Honest until the deploy path exists |
 | **One template type ships today.** The abstraction is in place; the content is not. | The fleet demo is still single-type. | v0.4 – v0.6 |
 | **`TEMPLATE_BINDING` is still one row per service.** | The API can't yet represent a multi-template repo. | v0.7 |
+| **Drift tracks file content, not permission bits.** | A `chmod` on a generated file isn't reported. | Deliberate for now |
 | **Multi-tenancy, SSO, and billing are not built.** | Single-tenant only. | Deliberate |
+
+## Documentation
+
+| | |
+|---|---|
+| [docs/architecture.md](docs/architecture.md) | Components, the `new` and `check` flows, manifest and descriptor internals, error types, CI |
+| [docs/roadmap.md](docs/roadmap.md) | Versions, dependencies, review checkpoints, standing decisions, what stays out of scope |
+| [docs/phases.md](docs/phases.md) | Each milestone: goal, scope, acceptance criteria, and what shipped |
 
 ## Stack
 

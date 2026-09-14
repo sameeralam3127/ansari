@@ -8,16 +8,18 @@ from ansari.scaffold import (
     ManifestTooNewError,
     RepoDriftReport,
     TemplateDriftReport,
+    TemplateError,
     VariableError,
     VariableValue,
     available_templates,
     bundled_version,
     check_repo_drift,
     find_bundled_template,
+    generate,
     read_manifest,
 )
 from ansari.scaffold.manifest import build_manifest, write_manifest
-from ansari.scaffold.template import NAME_VARIABLE, render
+from ansari.scaffold.template import NAME_VARIABLE
 
 app = typer.Typer(
     name="ansari",
@@ -132,12 +134,10 @@ def new(
     if repo_dir.exists():
         raise _fail(f"Directory already exists: {repo_dir}")
 
-    written: list[str] = []
-    for source, destination in spec.destinations(variables).items():
-        target = repo_dir / destination
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(render(spec, source, variables))
-        written.append(destination)
+    try:
+        written = generate(spec, variables, repo_dir)
+    except TemplateError as exc:
+        raise _fail(str(exc)) from exc
 
     # The manifest is what makes `ansari check` and `ansari sync` possible later:
     # it records the template version this repo came from and a hash per file, so
