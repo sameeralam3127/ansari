@@ -9,9 +9,9 @@ dependencies see [roadmap.md](roadmap.md); for how the result fits together see
 | — | v0.1 | ✅ | 24 | 92% |
 | [M1 · Multi-template manifest](#m1--multi-template-manifest) | v0.2 | ✅ merged in #26 | 80 | 95% |
 | [M2 · Pluggable templates](#m2--pluggable-templates) | v0.3 | ✅ merged in #26 | 123 | 96% |
-| [M3 · Render modes](#m3--render-modes) | v0.3.1 | ✅ built · awaiting merge | 144 | 97% |
-| [M4 · `k8s-scaling` + `attach`](#m4--k8s-scaling--attach) | v0.4 | 📋 next | | |
-| [M5 · `terraform-module`](#m5--terraform-module) | v0.5 | 📋 | | |
+| [M3 · Render modes](#m3--render-modes) | v0.3.1 | ✅ merged in #28 | 144 | 97% |
+| [M4 · `k8s-scaling` + `attach`](#m4--k8s-scaling--attach) | v0.4 | ✅ built · awaiting merge | 178 | 98% |
+| [M5 · `terraform-module`](#m5--terraform-module) | v0.5 | 📋 next | | |
 | [M6 · `ansible-role`](#m6--ansible-role) | v0.6 | 📋 | | |
 | [M7 · Fleet drift](#m7--fleet-drift) | v0.7 | 📋 | | |
 | [Sync](#v08--sync) | v0.8 | 📋 | | |
@@ -102,7 +102,7 @@ code.
 
 ## M3 · Render modes
 
-**Status:** ✅ built on `feat/render-modes` · awaiting merge · **Version:** v0.3.1
+**Status:** ✅ merged in #28 · **Version:** v0.3.1
 
 **Goal.** Support output formats that are themselves Jinja, binary or executable
 files, and optional files, without special-casing any template.
@@ -136,37 +136,73 @@ files, and optional files, without special-casing any template.
 
 ## M4 · `k8s-scaling` + `attach`
 
-**Status:** 📋 next · **Version:** v0.4 · **Blocked on:** M1 ✅, M2 ✅
+**Status:** ✅ built on `feat/k8s-scaling-attach` · awaiting merge · **Version:** v0.4
 
 **Goal.** The first real repo with two templates: a python-service repo with
 scaling config attached, and `check` reporting both.
 
 **Scope**
 
-- `k8s-scaling` template: HPA and PodDisruptionBudget for an existing chart,
-  **versioned independently** from python-service
-- `ansari attach --type <t> [--var …] [PATH]`:
-  - loads the manifest; refuses via `ensure_writable()` when any entry is
-    unresolved (`--allow-unresolved` to override)
-  - renders with `generate()` into the existing repo
-  - refuses destinations already owned by another template, and existing
-    untracked files it would overwrite
-  - appends a record with `attach_record()`, which writes schema 2
-- composite `check` output exercised on real content
+- `k8s-scaling` 0.1.0, attach-only (`standalone: false`): `autoscaling.yaml`
+  (the numbers), a `HorizontalPodAutoscaler`, and a `PodDisruptionBudget`,
+  written with alternate delimiters so Helm's `{{ }}` passes through
+- `ansari attach --type <t> [PATH] [--var …] [--name …] [--allow-unresolved]`,
+  backed by `scaffold.attach_template()`
+- python-service **1.0.0 → 1.1.0**, so the Deployment stops setting `replicas`
+  once scaling is attached (see below)
+- `ansari new` refuses attach-only templates; `ansari templates` labels them
+- `generate()` refuses to write into `.ansari/`
 
-**Why this shape.** A config option on python-service couldn't be versioned
-independently, and HPA/PDB API deprecations move on a different cadence from
-Dockerfiles. A standalone template type makes no sense, because an HPA with no
-Deployment isn't a thing you scaffold on its own.
+**The finding that reshaped this milestone.** python-service's Deployment set
+`replicas: {{ .Values.replicaCount }}` unconditionally. With an autoscaler
+attached, every `helm upgrade` would have reset the replica count the autoscaler
+had chosen. `helm create` guards that field for exactly this reason. Shipping the
+HPA on its own would have crossed the first tripwire: output that shouldn't go
+to production.
 
-**Acceptance criteria**
+k8s-scaling can't edit a file python-service owns, so the fix is a contract
+between the two templates, pinned by a test:
 
-- a python-service repo carries two templates, and `check` reports both
-- attaching onto a v1 repo upgrades its manifest and keeps the original entry
-- `attach` refuses against an unresolved entry by default
-- `attach` never overwrites a file it doesn't own
+- k8s-scaling writes `helm/<name>/autoscaling.yaml`
+- python-service 1.1.0's Deployment omits `replicas` while that file is in the
+  chart (`.Files.Get "autoscaling.yaml"`)
 
-**Then:** review checkpoint 1.
+Attaching alone produces a correct chart, with no hand-edit and no drift
+reported against python-service's files. Charts without scaling render exactly
+as before.
+
+**Consequence, accepted.** Every repo scaffolded on python-service 1.0.0 now
+reports *behind*. That's drift detection doing its job, but with no `sync` yet,
+upgrading a repo is manual. Between the two versions only `deployment.yaml` and
+`values.yaml` changed; the other five files are byte-identical.
+
+**Acceptance criteria and evidence**
+
+| Criterion | Evidence |
+|---|---|
+| A python-service repo carries two templates, and `check` reports both | `test_attach_then_check_reports_both_templates` |
+| Attaching onto a v1 repo upgrades it and keeps the original entry | `test_attaching_onto_a_v1_repo_upgrades_it_and_keeps_the_original_entry` |
+| Refuses against an unresolved entry by default | `test_attach_refuses_an_unresolved_entry_and_writes_nothing` |
+| Never overwrites a file it doesn't own | `test_attach_never_overwrites_an_untracked_file`, `test_attaching_the_same_template_twice_is_refused`, `test_an_unresolved_templates_files_are_still_protected` |
+| The autoscaler owns replicas in the rendered chart | `test_with_scaling_the_autoscaler_owns_replicas` (real `helm template`) |
+| The chart lints, and refuses impossible bounds | `test_the_chart_lints_with_scaling_attached`, `test_the_chart_refuses_to_render_impossible_bounds` |
+| The two templates agree on the contract file | `test_python_service_checks_for_the_file_k8s_scaling_writes` |
+
+Every refusal test compares a byte snapshot of the whole repo before and after.
+The Helm tests skip where `helm` isn't installed.
+
+**Decisions**
+
+- `maxUnavailable: 1` rather than `minAvailable`: a `minAvailable` at or above
+  the replica count stalls every node drain.
+- Bounds are enforced where they're used: the chart fails to render when
+  `minReplicas` is below 1 or above `maxReplicas`. The descriptor has no way to
+  express a rule spanning two variables, and one wasn't added for this.
+- The golden-output guard now keeps hashes per python-service version
+  (`tests/fixtures/golden/python-service.yaml`). A version bump with no recorded
+  entry fails, so a bump can't silently switch the guard off.
+
+**Then:** review checkpoint 1, before `terraform-module` starts.
 
 ---
 
