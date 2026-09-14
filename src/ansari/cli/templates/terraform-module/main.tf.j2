@@ -1,0 +1,15 @@
+[% set kind = "labels" if provider == "google" else "tags" -%]
+# Resources for this module go here. Pass local.[[ kind ]] to each resource's
+# `[[ kind ]]` argument so everything the module creates is identifiable.
+#
+# Providers are configured by the caller, not in this module. A module declares
+# only what it requires (versions.tf), so one root configuration can use it
+# across accounts, projects, or regions.
+
+[# The indentation sits inside each branch on purpose: a `-%]` would trim the
+   next line's leading spaces along with the newline. -#]
+locals {
+[% if provider == "aws" %]  tags = merge({ "Name" = var.name, "managed-by" = "terraform" }, var.tags)
+[% elif provider == "google" %]  labels = merge({ "name" = var.name, "managed-by" = "terraform" }, var.labels)
+[% else %]  tags = merge({ "name" = var.name, "managed-by" = "terraform" }, var.tags)
+[% endif %]}

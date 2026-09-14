@@ -1,0 +1,16 @@
+[% set kind = "labels" if provider == "google" else "tags" -%]
+variable "name" {
+  description = "Name for everything this module creates."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9-]{1,62}$", var.name))
+    error_message = "The name must be 2-63 lowercase letters, digits, or hyphens, starting with a letter."
+  }
+}
+
+variable "[[ kind ]]" {
+  description = "[[ kind | capitalize ]] applied to every resource this module creates."
+  type        = map(string)
+  default     = {}
+}

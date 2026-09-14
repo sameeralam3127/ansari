@@ -1,0 +1,18 @@
+# Local Terraform working data and state
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+
+# Variable files often hold secrets
+*.tfvars
+*.tfvars.json
+
+# CLI configuration
+.terraformrc
+terraform.rc
+
+# A reusable module doesn't commit a dependency lock file; the root
+# configuration that uses it does.
+.terraform.lock.hcl

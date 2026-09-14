@@ -1,0 +1,53 @@
+[% set kind = "labels" if provider == "google" else "tags" -%]
+# [[ name ]]
+
+A Terraform module for **[[ provider ]]**, scaffolded by
+`ansari new --type terraform-module`. It declares its provider requirements and
+leaves provider configuration to the caller.
+
+## Usage
+
+```hcl
+module "[[ name | replace('-', '_') ]]" {
+  source = "git::https://github.com/your-org/[[ name ]].git?ref=v0.1.0"
+
+  name = "[[ name ]]"
+}
+```
+
+## Inputs
+
+| Name | Type | Default | Description |
+|---|---|---|---|
+| `name` | `string` | required | Name for everything this module creates: 2–63 lowercase letters, digits, or hyphens, starting with a letter. |
+| `[[ kind ]]` | `map(string)` | `{}` | [[ kind | capitalize ]] applied to every resource this module creates. |
+
+## Outputs
+
+| Name | Description |
+|---|---|
+| `name` | The name this module was configured with. |
+| `[[ kind ]]` | The [[ kind ]] this module applies to its resources. |
+
+## Layout
+
+- `versions.tf` — Terraform and provider version constraints
+- `main.tf`, `variables.tf`, `outputs.tf` — the module
+- `examples/basic/` — a root configuration that uses the module
+- `.github/workflows/ansari.yml` — format and validation checks
+
+## CI
+
+`terraform fmt -check`, then `terraform init -backend=false` and
+`terraform validate` for both the module and the example. None of these need
+cloud credentials.
+
+A `plan` job is included **commented out**. A module can't be planned without a
+backend and real provider credentials; enable it only once this repository has
+them.
+
+## Staying current
+
+This repository carries `.ansari/manifest.yaml`. `ansari check` reports when the
+template it came from has moved on (a new provider major version, for example)
+and which generated files have been edited here.

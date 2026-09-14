@@ -53,6 +53,30 @@ jobs:
       - name: Test
         run: uv run pytest --cov --cov-report=term-missing
 
+  # Scaffolds each template and runs its real tools against the output, so a
+  # template that renders but wouldn't validate fails here, not in a user's repo.
+  template-smoke:
+    runs-on: ubuntu-latest
+    env:
+      # terraform init downloads the provider; validate the default one here.
+      ANSARI_TERRAFORM_VALIDATE: aws
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          # The wrapper rewrites stdout, which the tests read.
+          terraform_wrapper: false
+
+      - run: uv sync --extra dev
+
+      - name: Generated templates against their real tools
+        run: uv run pytest tests/scaffold/test_terraform_module.py tests/scaffold/test_attach.py -rs
+
   build-and-scan:
     needs: lint-type-test
     runs-on: ubuntu-latest

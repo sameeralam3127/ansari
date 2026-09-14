@@ -270,8 +270,8 @@ def test_templates_resolve_by_their_own_name() -> None:
 def test_an_unknown_template_name_resolves_to_none() -> None:
     # None rather than an exception: "this build ships no such template" is a
     # reportable state, not a failure.
-    assert find_bundled_template("terraform-module") is None
-    assert bundled_version("terraform-module") is None
+    assert find_bundled_template("from-the-future") is None
+    assert bundled_version("from-the-future") is None
 
 
 @pytest.mark.parametrize("name", ["", "../../etc", "a/b", ".hidden", "x\\y"])

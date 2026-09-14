@@ -1,0 +1,20 @@
+# GOLDEN OUTPUT -- what each terraform-module version generates.
+#
+# A test regenerates the current version with these variables and compares every
+# hash: any byte of difference within a version fails, and a version with no
+# entry fails too. Never edit an existing entry to make a test pass; bump the
+# template and add one.
+
+0.1.0:
+  files:
+    .github/workflows/ansari.yml: sha256:8e73b0d39b6403562c73f74b7466a2db4a1632f592738162170ad6660c0a6b54
+    .gitignore: sha256:fb393d311ecc80f3655cecd61e1275528a1f6a78cda631e6273617603d5fabed
+    README.md: sha256:07db9c9722446a1a626da538975c5ebf38d300ed5e55e7edf4de82d5122c24d8
+    examples/basic/main.tf: sha256:84198807a9f6be18e666fb0283971c26986a35f2b7d813d17141261e9467f06c
+    main.tf: sha256:bf16d6b3bc2a6991a6d635fdd7222f55526fff974578837893720a62fa9baf2c
+    outputs.tf: sha256:acc1e19e0adb3764d4258e1681280c458c43222604d9f34514c3901f315eca64
+    variables.tf: sha256:4067229a964bf298395164cf17d8b1583f37a74680f4fdcfb327cb81f6747b33
+    versions.tf: sha256:29e392528e18a5b3d98941d9a2bca592ecca551bf852ef0fbdd6053c9b88fe37
+  variables:
+    name: network
+    provider: aws

@@ -1,0 +1,46 @@
+name: ansari
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v4
+
+      - name: Check formatting
+        run: terraform fmt -check -recursive
+
+      - name: Validate the module
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
+
+      - name: Validate the example
+        working-directory: examples/basic
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
+
+  # `plan` is disabled by design. A module can't be planned without a backend
+  # and real [[ provider ]] credentials, and ANSARI never needs or holds credentials.
+  # To enable it: give this repository credentials (OIDC is the safer route),
+  # configure a backend for examples/basic, then uncomment the job below.
+  #
+  # plan:
+  #   needs: validate
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v7
+  #     - uses: hashicorp/setup-terraform@v4
+  #     - name: Plan the example
+  #       working-directory: examples/basic
+  #       run: |
+  #         terraform init -input=false
+  #         terraform plan -input=false

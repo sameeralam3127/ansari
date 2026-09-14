@@ -1,0 +1,15 @@
+[% set providers = {
+  "aws": {"source": "hashicorp/aws", "version": "~> 6.0"},
+  "google": {"source": "hashicorp/google", "version": "~> 8.0"},
+  "azurerm": {"source": "hashicorp/azurerm", "version": "~> 5.0"},
+} -%]
+terraform {
+  required_version = ">= 1.6.0"
+
+  required_providers {
+    [[ provider ]] = {
+      source  = "[[ providers[provider].source ]]"
+      version = "[[ providers[provider].version ]]"
+    }
+  }
+}

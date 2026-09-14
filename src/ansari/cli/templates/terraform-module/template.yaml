@@ -1,0 +1,31 @@
+name: terraform-module
+version: 0.1.0
+description: Reusable Terraform module with pinned provider requirements, an example, and validation CI.
+
+# HCL itself has no {{ }}, but GitHub Actions expressions do; ANSARI's own
+# markers move aside so nothing in the output ever needs escaping.
+render:
+  delimiters: alternate
+
+variables:
+  provider:
+    type: string
+    default: aws
+    choices: [aws, google, azurerm]
+    description: Cloud provider the module targets
+
+# Provider constraints in versions.tf.j2 track each provider's current major
+# release. Keeping them current is this template's job: raising one is a version
+# bump, which `ansari check` then reports as "behind" on every module scaffolded
+# from the older pin.
+files:
+  versions.tf.j2: versions.tf
+  main.tf.j2: main.tf
+  variables.tf.j2: variables.tf
+  outputs.tf.j2: outputs.tf
+  README.md.j2: README.md
+  examples/basic/main.tf.j2: examples/basic/main.tf
+  github-workflow.yml.j2: .github/workflows/ansari.yml
+  gitignore:
+    dest: .gitignore
+    render: copy

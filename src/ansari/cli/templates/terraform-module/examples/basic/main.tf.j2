@@ -1,0 +1,27 @@
+# A root configuration that uses the module. CI validates it with
+# `terraform init -backend=false && terraform validate`, which needs no
+# credentials; see the commented `plan` job in .github/workflows/ansari.yml.
+
+[% if provider == "aws" -%]
+provider "aws" {
+  region = "us-east-1"
+}
+[% elif provider == "google" -%]
+provider "google" {
+  project = "example-project"
+  region  = "us-central1"
+}
+[% else -%]
+provider "azurerm" {
+  features {}
+}
+[% endif %]
+module "[[ name | replace('-', '_') ]]" {
+  source = "../.."
+
+  name = "[[ name ]]"
+}
+
+output "name" {
+  value = module.[[ name | replace('-', '_') ]].name
+}

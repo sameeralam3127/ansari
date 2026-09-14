@@ -1,0 +1,17 @@
+# GOLDEN OUTPUT -- what each k8s-scaling version generates.
+#
+# A test regenerates the current version with these variables and compares every
+# hash: any byte of difference within a version fails, and a version with no
+# entry fails too. Never edit an existing entry to make a test pass; bump the
+# template and add one.
+
+0.1.0:
+  files:
+    helm/payment-api/autoscaling.yaml: sha256:4ab6076be10e742ede8ebd0cef059054def617624af646b3859da7bd70a1e516
+    helm/payment-api/templates/hpa.yaml: sha256:002d3dd3ddb1af8d354684b032369cb0d5c9ab9380023dc2f8960772d581e356
+    helm/payment-api/templates/pdb.yaml: sha256:491b6b1daec8def1e8d6f93f5fd80fcde0a1afebf1959866b5edb833484747a1
+  variables:
+    max_replicas: 10
+    min_replicas: 2
+    name: payment-api
+    target_cpu_utilization: 70
