@@ -1,5 +1,5 @@
 name: python-service
-version: 1.0.0
+version: 1.1.0
 description: Python service with a hardened Dockerfile, GitHub Actions CI, and a Helm chart.
 
 # Variables this template accepts, as {name} -> {declaration}. `ansari new`

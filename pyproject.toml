@@ -65,3 +65,6 @@ asyncio_mode = "auto"
 
 [tool.coverage.run]
 source = ["src/ansari"]
+# Bundled template sources are data, not Python. Some happen to parse as Python
+# (`minReplicas: [[ min_replicas ]]` is an annotated assignment) and would be counted.
+omit = ["src/ansari/cli/templates/*"]

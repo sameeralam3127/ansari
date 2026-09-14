@@ -4,6 +4,7 @@ Pure functions over files and paths — no database, no network. The CLI and the
 API are both thin callers over this package.
 """
 
+from ansari.scaffold.attach import AttachConflictError, attach_template, default_name
 from ansari.scaffold.drift import (
     RepoDriftReport,
     TemplateDriftReport,
@@ -49,6 +50,7 @@ from ansari.scaffold.template import (
 )
 
 __all__ = [
+    "AttachConflictError",
     "LEGACY_SCHEMA_VERSION",
     "MANIFEST_DIR",
     "MANIFEST_NAME",
@@ -69,6 +71,7 @@ __all__ = [
     "VariableValue",
     "VersionResolver",
     "attach_record",
+    "attach_template",
     "available_templates",
     "build_manifest",
     "build_record",
@@ -76,6 +79,7 @@ __all__ = [
     "bundled_version",
     "check_drift",
     "check_repo_drift",
+    "default_name",
     "ensure_writable",
     "file_digest",
     "find_bundled_template",

@@ -1,0 +1,28 @@
+{{- /* Managed by ANSARI (k8s-scaling). Numbers live in autoscaling.yaml. */}}
+{{- $scaling := .Files.Get "autoscaling.yaml" | fromYaml }}
+{{- if lt (int $scaling.minReplicas) 1 }}
+{{- fail "autoscaling.yaml: minReplicas must be at least 1" }}
+{{- end }}
+{{- if gt (int $scaling.minReplicas) (int $scaling.maxReplicas) }}
+{{- fail "autoscaling.yaml: minReplicas must not exceed maxReplicas" }}
+{{- end }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: [[ name ]]
+  labels:
+    app: [[ name ]]
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: [[ name ]]
+  minReplicas: {{ int $scaling.minReplicas }}
+  maxReplicas: {{ int $scaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ int $scaling.targetCPUUtilizationPercentage }}

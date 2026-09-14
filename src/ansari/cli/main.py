@@ -11,9 +11,11 @@ from ansari.scaffold import (
     TemplateError,
     VariableError,
     VariableValue,
+    attach_template,
     available_templates,
     bundled_version,
     check_repo_drift,
+    default_name,
     find_bundled_template,
     generate,
     read_manifest,
@@ -120,6 +122,11 @@ def new(
     spec = find_bundled_template(chosen)
     if spec is None:
         raise _fail(f"No template '{chosen}'. Available: {available_templates()}")
+    if not spec.standalone:
+        raise _fail(
+            f"'{spec.name}' is added to an existing repo rather than scaffolded on its own.\n"
+            f"Use: ansari attach --type {spec.name} <repo>"
+        )
 
     supplied = {**aliased, **_parse_vars(var)}
     try:
@@ -165,13 +172,80 @@ def templates() -> None:
         spec = find_bundled_template(template_name)
         if spec is None:  # pragma: no cover - listing reads the same directory
             continue
-        typer.secho(f"{spec.name}  v{spec.version}", fg=typer.colors.GREEN)
+        kind = "" if spec.standalone else "  (attach only)"
+        typer.secho(f"{spec.name}  v{spec.version}{kind}", fg=typer.colors.GREEN)
         if spec.description:
             typer.echo(f"  {spec.description}")
         for key, variable in sorted(spec.variables.items()):
             default = "required" if variable.required else f"default: {variable.default}"
             choices = f", one of {variable.choices}" if variable.choices else ""
             typer.echo(f"    --var {key}=<{variable.type}>  ({default}{choices})")
+
+
+@app.command()
+def attach(
+    template_type: Annotated[str, typer.Option("--type", help="Template to attach")],
+    path: Annotated[Path, typer.Argument(help="Repo to attach it to")] = Path("."),
+    var: Annotated[
+        list[str] | None, typer.Option("--var", help="Template variable, key=value (repeatable)")
+    ] = None,
+    name: Annotated[
+        str | None,
+        typer.Option(help="Artifact name; defaults to the name the repo was scaffolded with"),
+    ] = None,
+    allow_unresolved: Annotated[
+        bool,
+        typer.Option(
+            "--allow-unresolved",
+            help="Attach even though the repo carries a template this ANSARI cannot read",
+        ),
+    ] = False,
+) -> None:
+    """Add a template to a repo ANSARI already tracks.
+
+    Nothing is written unless every check passes. A template in the manifest
+    this build cannot read, a file another template owns, or an untracked file
+    in the way each refuses the attach and leaves the repo exactly as it was.
+    """
+    try:
+        manifest = read_manifest(path)
+    except ManifestTooNewError as exc:
+        raise _fail(str(exc)) from exc
+    except ManifestError as exc:
+        raise _fail(f"Could not read manifest: {exc}") from exc
+    if manifest is None:
+        raise _fail(
+            f"No .ansari/manifest.yaml in {path}.\n"
+            "attach adds to a repo ANSARI already tracks; use `ansari new` to start one."
+        )
+
+    spec = find_bundled_template(template_type)
+    if spec is None:
+        raise _fail(f"No template '{template_type}'. Available: {available_templates()}")
+
+    try:
+        variables: dict[str, VariableValue] = {
+            NAME_VARIABLE: name or default_name(manifest, path),
+            **spec.resolve_variables(_parse_vars(var)),
+        }
+    except VariableError as exc:
+        raise _fail(str(exc)) from exc
+
+    try:
+        updated, written = attach_template(
+            path, manifest, spec, variables, bundled_version, allow_unresolved=allow_unresolved
+        )
+    except (ManifestError, TemplateError) as exc:
+        raise _fail(str(exc)) from exc
+
+    typer.secho(f"Attached {spec.name} v{spec.version} to {path}", fg=typer.colors.GREEN)
+    for item in written:
+        typer.echo(f"  {item}")
+    if manifest.schema < updated.schema:
+        typer.echo(f"Upgraded .ansari/manifest.yaml to schema {updated.schema}.")
+    typer.echo(f"The manifest now tracks {len(updated.templates)} templates.")
+    typer.echo("")
+    typer.echo("Next: ansari check   # confirm every attached template is on the golden path")
 
 
 def _echo_paths(label: str, paths: list[str]) -> None:

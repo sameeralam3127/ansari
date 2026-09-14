@@ -10,9 +10,9 @@ acceptance criteria, what shipped) is in [phases.md](phases.md).
 | **v0.1** | — | Foundation: API, `ansari new`, `ansari check`, CI with Trivy | ✅ |
 | **v0.2** | M1 | Multi-template manifest: schema v2, v1 reader, composite drift | ✅ |
 | **v0.3** | M2 | Pluggable templates: `--type`, `--var`, template-declared variables | ✅ |
-| **v0.3.1** | M3 | Render modes: alternate delimiters, copy, file modes, conditional files | ✅ built · awaiting merge |
-| **v0.4** | M4 | `k8s-scaling` sub-template + `ansari attach` | 📋 next |
-| **v0.5** | M5 | `terraform-module` | 📋 |
+| **v0.3.1** | M3 | Render modes: alternate delimiters, copy, file modes, conditional files | ✅ |
+| **v0.4** | M4 | `k8s-scaling` sub-template + `ansari attach` | ✅ built · awaiting merge |
+| **v0.5** | M5 | `terraform-module` | 📋 next · after checkpoint 1 |
 | **v0.6** | M6 | `ansible-role` | 📋 |
 | **v0.7** | M7 | Fleet drift: `check --fleet`, `TEMPLATE_BINDING` per template | 📋 |
 | **v0.8** | — | Sync: three-way merge, one PR per stale repo | 📋 |
@@ -24,7 +24,7 @@ acceptance criteria, what shipped) is in [phases.md](phases.md).
 flowchart LR
     M1[M1 · schema v2 ✅] --> M2[M2 · pluggable ✅]
     M2 --> M3[M3 · render modes ✅]
-    M1 --> M4[M4 · k8s-scaling + attach]
+    M1 --> M4[M4 · k8s-scaling + attach ✅]
     M2 --> M4
     M2 --> M5[M5 · terraform-module]
     M3 --> M6[M6 · ansible-role]
@@ -83,7 +83,7 @@ paused** until the scope is cut back. Noting it and carrying on is not allowed.
 - no breaking change to the public CLI without an explicit decision
 - the README and these docs updated in the same change
 
-Coverage so far: 92% (v0.1) → 95% (v0.2) → 96% (v0.3) → 97% (v0.3.1).
+Coverage so far: 92% (v0.1) → 95% (v0.2) → 96% (v0.3) → 97% (v0.3.1) → 98% (v0.4).
 
 ## Standing decisions
 
@@ -93,6 +93,8 @@ Coverage so far: 92% (v0.1) → 95% (v0.2) → 96% (v0.3) → 97% (v0.3.1).
 | `terraform plan` in generated CI | ships **commented out and labelled** | never by default: a module can't plan without credentials |
 | Alternate delimiters | `[[ ]]` `[% %]` `[# #]` | — |
 | `k8s-scaling` shape | composable sub-template, versioned independently | — |
+| Attach-only templates | `standalone: false` in the descriptor; `ansari new` refuses them | — |
+| Who owns replicas | python-service's Deployment omits `replicas` while the chart contains k8s-scaling's `autoscaling.yaml` | if Helm gains a better signal that an autoscaler manages a Deployment |
 | Molecule in `ansible-role` | opt-in via `when`, off by default | if the reference roles adopt per-role molecule |
 | Templates ship in-tree | reviewed like code, no external registry | — |
 

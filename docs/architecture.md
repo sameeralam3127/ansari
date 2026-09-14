@@ -12,7 +12,7 @@ flowchart LR
 
     subgraph tpl["Bundled templates (in-tree, versioned)"]
         t1[python-service ✅]
-        t2[k8s-scaling 📋]
+        t2[k8s-scaling ✅]
         t3[terraform-module 📋]
         t4[ansible-role 📋]
     end
@@ -39,10 +39,11 @@ hashes them, and later compares them.
 
 | Component | Location | Responsibility |
 |---|---|---|
-| CLI | `src/ansari/cli/main.py` | Thin Typer front end: `new`, `templates`, `check`. Parses arguments, formats output, maps errors to exit codes. |
+| CLI | `src/ansari/cli/main.py` | Thin Typer front end: `new`, `attach`, `templates`, `check`. Parses arguments, formats output, maps errors to exit codes. |
 | Template loading and writing | `src/ansari/scaffold/template.py` | Reads `template.yaml`, validates variables, resolves destinations, renders or copies files. |
 | Manifest | `src/ansari/scaffold/manifest.py` | The `.ansari/manifest.yaml` format: schema dispatch, v1 compatibility, path-overlap invariant, writing. |
 | Drift | `src/ansari/scaffold/drift.py` | Compares files against recorded hashes, per template and composed across a repo; guards writes. |
+| Attach | `src/ansari/scaffold/attach.py` | Adds a template to an existing repo: every refusal checked before any write, then recorded in the manifest. |
 | Bundled templates | `src/ansari/cli/templates/<name>/` | One directory per template: Jinja sources plus a descriptor. |
 | API | `src/ansari/api/` | FastAPI app: projects, environments, pipeline runs, deployments, health. |
 | Persistence | `src/ansari/api/models.py`, `alembic/` | SQLAlchemy 2.0 models on Postgres; schema owned by Alembic migrations. |
@@ -55,10 +56,12 @@ in the CLI.
 ```
 src/ansari/
 ├── cli/
-│   ├── main.py                 # new · templates · check
+│   ├── main.py                 # new · attach · templates · check
 │   └── templates/
-│       └── python-service/     # template.yaml + Jinja sources
+│       ├── python-service/     # template.yaml + Jinja sources
+│       └── k8s-scaling/        # attach-only: HPA, PDB, autoscaling.yaml
 ├── scaffold/                   # pure: files in, reports out
+│   ├── attach.py               # add a template to an existing repo
 │   ├── template.py             # descriptor, variables, render modes, generate()
 │   ├── manifest.py             # schema v1/v2, invariants, read/write
 │   └── drift.py                # per-template + composite drift, write guard
@@ -113,6 +116,37 @@ flowchart TB
 ```
 
 `check` is **read-only**. It never rewrites a manifest, including a v1 manifest.
+
+## Flow: `ansari attach`
+
+```mermaid
+flowchart TB
+    start([ansari attach --type T PATH]) --> read[read_manifest]
+    read -->|none · unreadable · too new| stop[exit 1, nothing written]
+    read -->|ok| guard{every attached template\nresolvable?}
+    guard -->|no, and no --allow-unresolved| stop
+    guard -->|yes| plan[resolve T's destinations]
+    plan --> own{owned by a template,\nor already on disk?}
+    own -->|yes| stop
+    own -->|no| gen[generate]
+    gen --> rec[attach_record → write_manifest\nschema 2]
+    rec --> done([exit 0])
+```
+
+Every refusal happens **before anything is written**, so a refused attach leaves
+the repo and its manifest byte-for-byte unchanged. Paths recorded by an
+unresolved template still count as owned, even with `--allow-unresolved`.
+
+An attached template renders with the `name` the repo was scaffolded with, not
+the directory name, because that's what the existing paths (`helm/payment-api/…`)
+were built from.
+
+### The one cross-template contract
+
+python-service's Deployment omits `replicas` while `autoscaling.yaml` exists in
+its chart, and k8s-scaling writes exactly that file. Without the contract, every
+`helm upgrade` would reset the replica count the autoscaler chose. A test pins
+both templates to the same filename.
 
 ## The manifest
 
@@ -183,8 +217,11 @@ files:
 | `when` | generates the file only when the variable is `True` | must name a declared `bool` variable |
 
 `generate()` resolves every destination before writing anything. A destination
-outside the repo, two sources writing one path, or a missing source is refused
-with nothing on disk.
+outside the repo, one inside `.ansari/`, two sources writing one path, or a
+missing source is refused with nothing on disk.
+
+`standalone: false` marks a template that only makes sense added to an existing
+repo. `ansari new` refuses it, and `ansari templates` labels it *attach only*.
 
 ## Drift classification
 
@@ -209,10 +246,11 @@ Drift compares **content only**. A `chmod` on a generated file is not reported.
 | `ManifestError` | manifest malformed, fields missing, paths overlap | "Could not read manifest: …" |
 | `ManifestTooNewError` | `schema` is newer than this build | "…upgrade ANSARI to read it" |
 | `UnresolvedTemplateError` | a write is attempted onto a manifest with an unknown template | "refusing to write …" |
+| `AttachConflictError` | an attach would write over a file another template owns, or an untracked file | "refusing to attach … owned by / not tracked" |
 | `TemplateError` | descriptor invalid, destination refused, source missing | the specific cause |
 | `VariableError` | caller's `--var` unknown, mistyped, outside `choices`, or missing | the specific cause |
 
-`ManifestTooNewError` and `UnresolvedTemplateError` subclass `ManifestError`;
+`ManifestTooNewError`, `UnresolvedTemplateError` and `AttachConflictError` subclass `ManifestError`;
 `VariableError` subclasses `TemplateError`. A caller that only catches the base
 class never leaks a traceback.
 
@@ -259,7 +297,6 @@ flowchart LR
 
 | Change | Why | When |
 |---|---|---|
-| `ansari attach` using the existing `generate()` + `attach_record()` + `ensure_writable()` | first real multi-template repo | v0.4 |
 | Move templates to `src/ansari/templates/` | the API will read them too; they don't belong to `cli` | housekeeping |
 | `TEMPLATE_BINDING` table, one row per attached template | fleet drift without cloning | v0.7 |
 | `src/ansari/integrations/` (GitHub API) | `sync --pr` | v0.8 |

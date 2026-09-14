@@ -24,7 +24,7 @@ from typing import Any
 import yaml
 from jinja2 import BaseLoader, Environment, FileSystemLoader
 
-from ansari.scaffold.manifest import VariableValue
+from ansari.scaffold.manifest import MANIFEST_DIR, VariableValue
 
 DESCRIPTOR_NAME = "template.yaml"
 BUNDLED_DIR = Path(__file__).resolve().parent.parent / "cli" / "templates"
@@ -143,6 +143,9 @@ class TemplateSpec:
     variables: dict[str, VariableSpec]
     root: Path
     delimiters: Delimiters = field(default_factory=Delimiters)
+    standalone: bool = True
+    """False for a template that only makes sense added to an existing repo with
+    `ansari attach` -- scaling config with no Deployment of its own, say."""
 
     def environment(self, *, loader: BaseLoader | None = None) -> Environment:
         # autoescape is off deliberately: these render Dockerfile/YAML/HCL text
@@ -359,6 +362,10 @@ def load_template(root: Path) -> TemplateSpec:
                 "which is not a declared bool variable"
             )
 
+    standalone = raw.get("standalone", True)
+    if not isinstance(standalone, bool):
+        raise TemplateError(f"{descriptor}: 'standalone' must be true or false")
+
     description = raw.get("description")
     return TemplateSpec(
         name=name,
@@ -368,6 +375,7 @@ def load_template(root: Path) -> TemplateSpec:
         variables=variables,
         root=root,
         delimiters=_parse_render(raw.get("render"), descriptor),
+        standalone=standalone,
     )
 
 
@@ -450,6 +458,10 @@ def generate(
         target = (repo_dir / dest).resolve()
         if target == root or not target.is_relative_to(root):
             raise TemplateError(f"'{source}' would write outside the repo: {dest!r}")
+        if target.relative_to(root).parts[0] == MANIFEST_DIR:
+            raise TemplateError(
+                f"'{source}' would write into {MANIFEST_DIR}/, which ANSARI reserves: {dest!r}"
+            )
         if dest in claimed:
             raise TemplateError(f"'{claimed[dest]}' and '{source}' both write {dest!r}")
         if not (spec.root / source).is_file():

@@ -1,0 +1,34 @@
+name: k8s-scaling
+version: 0.1.0
+description: HorizontalPodAutoscaler and PodDisruptionBudget for a python-service Helm chart.
+
+# Attached with `ansari attach --type k8s-scaling`, never scaffolded on its own:
+# an autoscaler with no Deployment to scale is not a thing to create alone.
+standalone: false
+
+# These files are Helm templates, so ANSARI's own markers move aside and Helm's
+# {{ }} passes through untouched.
+render:
+  delimiters: alternate
+
+variables:
+  min_replicas:
+    type: int
+    default: 2
+    description: Fewest pods the autoscaler keeps running
+  max_replicas:
+    type: int
+    default: 10
+    description: Most pods the autoscaler may run
+  target_cpu_utilization:
+    type: int
+    default: 70
+    description: Average CPU use, as a percent of requests, the autoscaler aims for
+
+# autoscaling.yaml is a contract with python-service (1.1.0 and later): while it
+# is in the chart, the Deployment omits spec.replicas, so the autoscaler owns the
+# replica count instead of every `helm upgrade` resetting it.
+files:
+  autoscaling.yaml.j2: helm/[[ name ]]/autoscaling.yaml
+  hpa.yaml.j2: helm/[[ name ]]/templates/hpa.yaml
+  pdb.yaml.j2: helm/[[ name ]]/templates/pdb.yaml
