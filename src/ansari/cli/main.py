@@ -3,6 +3,7 @@ from typing import Annotated
 
 import typer
 
+from ansari.integrations.github import PullRequestError, open_pull_request
 from ansari.scaffold import (
     ManifestError,
     ManifestTooNewError,
@@ -18,11 +19,27 @@ from ansari.scaffold import (
     check_fleet,
     check_repo_drift,
     default_name,
+    discover_repos,
     find_bundled_template,
     generate,
     read_manifest,
 )
 from ansari.scaffold.manifest import build_manifest, write_manifest
+from ansari.scaffold.sync import (
+    ADD,
+    CONFLICT,
+    KEPT,
+    LEFT_DELETED,
+    MERGE,
+    REMOVE,
+    UNCHANGED,
+    UPDATE,
+    SyncError,
+    SyncPlan,
+    apply_sync,
+    ensure_syncable,
+    plan_sync,
+)
 from ansari.scaffold.template import NAME_VARIABLE
 
 app = typer.Typer(
@@ -437,7 +454,7 @@ def check(
     if repo.edited:
         typer.echo("Locally edited files will be three-way merged, never overwritten.")
     if repo.behind:
-        typer.echo("Run `ansari sync` to upgrade to the current template. (Not yet implemented.)")
+        typer.echo("Run `ansari sync` to upgrade to the current template.")
     if repo.unresolved:
         typer.echo(
             "Cannot verify: "
@@ -445,6 +462,192 @@ def check(
             + ". This repo was scaffolded by a newer ANSARI; upgrade to check it."
         )
     raise typer.Exit(1)
+
+
+SYNC_LABELS = {
+    UPDATE: "updated",
+    ADD: "added",
+    MERGE: "merged",
+    CONFLICT: "CONFLICT",
+    REMOVE: "removed",
+    KEPT: "kept",
+    LEFT_DELETED: "left deleted",
+}
+
+
+def _warn(message: str) -> None:
+    typer.secho(message, fg=typer.colors.RED, err=True)
+
+
+def _echo_sync_plan(plan: SyncPlan) -> None:
+    for template_plan in plan.templates:
+        header = (
+            f"{template_plan.template}  {template_plan.record.version} → {template_plan.to_version}"
+        )
+        if template_plan.refused is not None:
+            typer.secho(header, fg=typer.colors.RED)
+            typer.secho(f"  refused: {template_plan.refused}", fg=typer.colors.RED)
+            continue
+        colour = typer.colors.YELLOW if template_plan.conflicts else typer.colors.GREEN
+        typer.secho(header, fg=colour)
+        shown = [action for action in template_plan.actions if action.kind != UNCHANGED]
+        if not shown:
+            typer.echo("  no file changes; only the recorded version moves")
+        for action in shown:
+            note = "  (edited here; no longer generated)" if action.kind == KEPT else ""
+            fg = typer.colors.RED if action.kind == CONFLICT else None
+            typer.secho(f"  {SYNC_LABELS[action.kind]:<13}{action.path}{note}", fg=fg)
+
+
+def _sync_branch(plan: SyncPlan) -> str:
+    synced = [t for t in plan.templates if t.refused is None]
+    return "ansari/sync-" + "-".join(f"{t.template}-{t.to_version}" for t in synced)
+
+
+def _sync_title(plan: SyncPlan) -> str:
+    synced = [t for t in plan.templates if t.refused is None]
+    return "Sync " + ", ".join(f"{t.template} to {t.to_version}" for t in synced)
+
+
+def _sync_body(plan: SyncPlan) -> str:
+    lines = ["Opened by `ansari sync --pr`.", ""]
+    for template_plan in plan.templates:
+        lines.append(
+            f"**{template_plan.template}** {template_plan.record.version} → "
+            f"{template_plan.to_version}"
+        )
+        lines += [
+            f"- {SYNC_LABELS[action.kind]} `{action.path}`"
+            for action in template_plan.actions
+            if action.kind != UNCHANGED
+        ]
+        lines.append("")
+    lines.append(
+        "Files edited in this repository were three-way merged against what the previous "
+        "version generated. Review the diff before merging."
+    )
+    return "\n".join(lines)
+
+
+def _sync_repo(repo: Path, *, dry_run: bool, allow_dirty: bool, pr: bool) -> bool:
+    """Sync one repo, reporting as it goes. Returns whether it ended cleanly."""
+    try:
+        manifest = read_manifest(repo)
+    except ManifestError as exc:
+        _warn(f"Could not read manifest: {exc}")
+        return False
+    if manifest is None:
+        _warn(f"No .ansari/manifest.yaml in {repo}.")
+        return False
+
+    try:
+        ensure_syncable(repo, allow_dirty=allow_dirty)
+        plan = plan_sync(repo, manifest, find_bundled_template)
+    except (SyncError, ManifestError) as exc:
+        _warn(str(exc))
+        return False
+
+    if plan.up_to_date:
+        typer.secho("Nothing to sync: every template is current.", fg=typer.colors.GREEN)
+        return True
+
+    _echo_sync_plan(plan)
+    typer.echo("")
+    if dry_run:
+        typer.echo("Dry run: nothing written.")
+        return plan.clean
+    if pr and not plan.clean:
+        # Committing conflict markers, or half a sync, is worse than no pull request.
+        _warn(
+            "Not opening a pull request with refusals or conflicts. "
+            "Run `ansari sync` without --pr to work through them."
+        )
+        return False
+
+    apply_sync(plan)
+
+    if pr:
+        try:
+            url = open_pull_request(repo, _sync_branch(plan), _sync_title(plan), _sync_body(plan))
+        except PullRequestError as exc:
+            _warn(f"Synced, but couldn't open the pull request: {exc}")
+            return False
+        typer.secho(f"Opened {url}", fg=typer.colors.GREEN)
+        return True
+
+    if plan.conflicts:
+        typer.secho(
+            f"Resolve the conflict markers in {_plural(len(plan.conflicts), 'file')}, then commit.",
+            fg=typer.colors.RED,
+        )
+    if plan.refused:
+        refused = len(plan.refused)
+        typer.secho(
+            f"{_plural(refused, 'template')} refused; nothing was written for "
+            f"{'it' if refused == 1 else 'them'}.",
+            fg=typer.colors.RED,
+        )
+    if plan.clean:
+        typer.secho(
+            "Synced. Review the changes with `git diff`, then commit.", fg=typer.colors.GREEN
+        )
+    return plan.clean
+
+
+@app.command()
+def sync(
+    path: Annotated[
+        Path, typer.Argument(help="Repo to upgrade; with --fleet, the directory to scan")
+    ] = Path("."),
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", help="Show what would change; write nothing")
+    ] = False,
+    allow_dirty: Annotated[
+        bool, typer.Option("--allow-dirty", help="Sync despite uncommitted changes")
+    ] = False,
+    fleet: Annotated[
+        bool, typer.Option("--fleet", help="Sync every ANSARI repo under PATH")
+    ] = False,
+    pr: Annotated[
+        bool, typer.Option("--pr", help="Commit on a branch, push, and open a pull request")
+    ] = False,
+) -> None:
+    """Upgrade a repo's templates to the versions this ANSARI ships.
+
+    Untouched files are replaced, edited ones three-way merged against what the old
+    version generated (found in git history), and deleted ones left alone. Exits 1
+    when a template is refused or left with conflict markers.
+    """
+    if pr and dry_run:
+        raise _fail("--pr and --dry-run contradict each other: one writes, the other doesn't.")
+    if pr and allow_dirty:
+        raise _fail("--pr commits the sync, so it needs a clean working tree; drop --allow-dirty.")
+
+    if not fleet:
+        if not _sync_repo(path, dry_run=dry_run, allow_dirty=allow_dirty, pr=pr):
+            raise typer.Exit(1)
+        return
+
+    if not path.is_dir():
+        raise _fail(f"Not a directory: {path}")
+    repos = discover_repos(path)
+    if not repos:
+        raise _fail(f"No ANSARI repos found under {path}.")
+
+    failed = 0
+    for repo in repos:
+        typer.secho(f"== {repo.relative_to(path)} ==", bold=True)
+        if not _sync_repo(repo, dry_run=dry_run, allow_dirty=allow_dirty, pr=pr):
+            failed += 1
+        typer.echo("")
+    if failed:
+        typer.secho(
+            f"{failed} of {_plural(len(repos), 'repo')} need attention.", fg=typer.colors.RED
+        )
+        raise typer.Exit(1)
+    typer.secho(
+        f"All {_plural(len(repos), 'repo')} synced or already current.", fg=typer.colors.GREEN
+    )
 
 
 if __name__ == "__main__":
