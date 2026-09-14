@@ -28,8 +28,9 @@ flowchart LR
     class cli,api ansari
 ```
 
-Solid arrows exist today. Dotted arrows are planned: the CLI does not yet talk to
-the API, and no fleet view exists.
+Solid arrows exist today. Dotted arrows are planned: nothing reports drift to the
+API yet, and there's no dashboard. Fleet drift itself works today from the CLI
+(`ansari check --fleet`), and the API can store and list template bindings.
 
 ANSARI orchestrates tools rather than reimplementing them. It **never** runs CI,
 reconciles Kubernetes, applies Terraform, or executes Ansible. It writes files,
@@ -39,11 +40,12 @@ hashes them, and later compares them.
 
 | Component | Location | Responsibility |
 |---|---|---|
-| CLI | `src/ansari/cli/main.py` | Thin Typer front end: `new`, `attach`, `templates`, `check`. Parses arguments, formats output, maps errors to exit codes. |
+| CLI | `src/ansari/cli/main.py` | Thin Typer front end: `new`, `attach`, `templates`, `check`, `check --fleet`. Parses arguments, formats output, maps errors to exit codes. |
 | Template loading and writing | `src/ansari/scaffold/template.py` | Reads `template.yaml`, validates variables, resolves destinations, renders or copies files. |
 | Manifest | `src/ansari/scaffold/manifest.py` | The `.ansari/manifest.yaml` format: schema dispatch, v1 compatibility, path-overlap invariant, writing. |
 | Drift | `src/ansari/scaffold/drift.py` | Compares files against recorded hashes, per template and composed across a repo; guards writes. |
 | Attach | `src/ansari/scaffold/attach.py` | Adds a template to an existing repo: every refusal checked before any write, then recorded in the manifest. |
+| Fleet | `src/ansari/scaffold/fleet.py` | Finds every ANSARI repo under a directory and checks each; summarises by template. |
 | Bundled templates | `src/ansari/cli/templates/<name>/` | One directory per template: Jinja sources plus a descriptor. |
 | API | `src/ansari/api/` | FastAPI app: projects, environments, pipeline runs, deployments, health. |
 | Persistence | `src/ansari/api/models.py`, `alembic/` | SQLAlchemy 2.0 models on Postgres; schema owned by Alembic migrations. |
@@ -64,6 +66,7 @@ src/ansari/
 │       └── ansible-role/       # galaxy role, lint configs, optional molecule
 ├── scaffold/                   # pure: files in, reports out
 │   ├── attach.py               # add a template to an existing repo
+│   ├── fleet.py                # every repo under a directory
 │   ├── template.py             # descriptor, variables, render modes, generate()
 │   ├── manifest.py             # schema v1/v2, invariants, read/write
 │   └── drift.py                # per-template + composite drift, write guard
@@ -149,6 +152,25 @@ python-service's Deployment omits `replicas` while `autoscaling.yaml` exists in
 its chart, and k8s-scaling writes exactly that file. Without the contract, every
 `helm upgrade` would reset the replica count the autoscaler chose. A test pins
 both templates to the same filename.
+
+## Flow: `ansari check --fleet`
+
+```mermaid
+flowchart LR
+    root([ansari check --fleet ROOT]) --> scan[discover_repos\nskip .git · caches · symlinks]
+    scan --> each{for each manifest}
+    each -->|unreadable| err[reported as an error]
+    each -->|readable| drift[check_repo_drift]
+    drift --> sum[per-repo lines +\nby-template summary]
+    err --> sum
+    sum --> exit{every repo clean,\nand at least one found?}
+    exit -->|yes| ok[exit 0]
+    exit -->|no| bad[exit 1]
+```
+
+Read-only and offline, like single-repo `check`. The summary counts
+**attachments** rather than repos, because each attachment can fall behind on its
+own. A scan that finds nothing exits non-zero instead of reporting a clean fleet.
 
 ## The manifest
 
@@ -264,6 +286,7 @@ Current tables:
 erDiagram
     PROJECT ||--o{ ENVIRONMENT : has
     PROJECT ||--o{ PIPELINE_RUN : triggers
+    PROJECT ||--o{ TEMPLATE_BINDING : records
     ENVIRONMENT ||--o{ DEPLOYMENT : receives
     PIPELINE_RUN ||--o{ DEPLOYMENT : produces
 ```
@@ -271,9 +294,12 @@ erDiagram
 - UUID primary keys, timezone-aware timestamps, indexed foreign keys, enums
   stored by value.
 - List endpoints are paginated (`limit` / `offset`, capped at 200).
-- `TEMPLATE_BINDING` is **not built yet**. It's planned for v0.7 as **one row per
-  attached template**, a cache of what each repo's manifest says, so fleet drift
-  doesn't need to clone every repo. The repo's manifest stays authoritative.
+- `TEMPLATE_BINDING` holds **one row per attached template**: a cache of what
+  each repo's manifest says, so fleet drift doesn't need to clone every repo. The
+  repo's manifest stays authoritative. `PUT /projects/{id}/template-bindings`
+  replaces a project's set in manifest order; `GET /template-bindings` lists
+  across projects, filterable by template and drift flags. Nothing reports to it
+  yet.
 - The API is unauthenticated. It's for local or self-hosted use only.
 
 ## CI
@@ -307,5 +333,4 @@ flowchart LR
 | Change | Why | When |
 |---|---|---|
 | Move templates to `src/ansari/templates/` | the API will read them too; they don't belong to `cli` | housekeeping |
-| `TEMPLATE_BINDING` table, one row per attached template | fleet drift without cloning | v0.7 |
 | `src/ansari/integrations/` (GitHub API) | `sync --pr` | v0.8 |

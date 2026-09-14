@@ -460,10 +460,13 @@ erDiagram
     TEMPLATE_BINDING {
         uuid id PK
         uuid service_id FK
+        int position
         string template
         string version
-        json file_hashes
-        enum drift_state
+        json files
+        bool behind
+        bool edited
+        bool unresolved
     }
     PIPELINE_RUN {
         uuid id PK
@@ -482,9 +485,8 @@ erDiagram
 
 `TEMPLATE_BINDING` is the fleet's cached view of what each repo's manifest says,
 so `--fleet` needn't clone forty repos to answer a question. The repo's manifest
-stays authoritative; this is a cache. It becomes one row *per attached template*
-rather than one per service — the schema change that makes multi-template repos
-visible to the fleet view.
+stays authoritative; this is a cache. It is one row *per attached template*, so a repo
+carrying two templates has two rows.
 
 `PIPELINE_RUN` and `DEPLOYMENT` are separate because that's what makes rollback
 meaningful: a run is one CI execution for a commit, a deployment is that run's
@@ -518,7 +520,7 @@ repository layer: tenant scoping cannot depend on every handler remembering
 | **v0.4** | `k8s-scaling` sub-template + `ansari attach` | ✅ |
 | **v0.5** | `terraform-module` — skeleton, `fmt`/`validate` in CI | ✅ |
 | **v0.6** | `ansible-role` — standard layout, `ansible-lint`, optional molecule | ✅ |
-| **v0.7** | Fleet drift — `check --fleet` across types and multi-template repos | 📋 |
+| **v0.7** | Fleet drift — `check --fleet` across types and multi-template repos | ✅ |
 | **v0.8** | Sync — three-way merge, one PR per stale repo | 📋 |
 | **v1.0** | Dashboard + `make demo` — seeds a fleet, drifts it, shows the report | 📋 |
 
@@ -546,11 +548,12 @@ lower than the milestone before it.
 | `k8s-scaling` template — HPA + PodDisruptionBudget; the autoscaler owns replicas | ✅ |
 | `terraform-module` template — aws · google · azurerm, pinned providers, credential-free CI | ✅ |
 | `ansible-role` template — ansible-lint production profile, yamllint, optional Molecule | ✅ |
-| `ansari check --fleet` — drift across all repos | 📋 |
+| `ansari check --fleet` — drift across every repo under a directory, summarised by template | ✅ |
+| API template bindings — one row per attached template; fleet-wide `GET /template-bindings` | ✅ |
 | `ansari sync --pr` — three-way merge, fleet-wide upgrade PRs | 📋 |
 | Fleet dashboard | 📋 |
 
-In place today: `mypy --strict`, `ruff` lint + format, 241 tests (API tests run
+In place today: `mypy --strict`, `ruff` lint + format, 270 tests (API tests run
 against real Postgres with the migrations applied), `alembic check` guarding
 model / migration drift, structured JSON logging with request IDs, `/healthz` +
 `/readyz`, non-root container, Trivy scanning in CI.
@@ -566,7 +569,7 @@ Listed rather than left to be discovered. Each is a real defect.
 | **The Molecule scenario tests one platform** (Ubuntu 24.04), whatever `platforms` lists. | Other distributions aren't exercised. | Deliberate for now |
 | **python-service's generated workflow pins outdated GitHub Actions** (checkout v4, setup-uv v3, build-push-action v6; current majors are v7, v10, v7). | New services start on old Actions. | Next python-service bump |
 | **Moving an existing repo to python-service 1.1.0 is manual.** Repos on 1.0.0 now report *behind*, and there's no `sync` yet. | Upgrades are hand-applied. | v0.8 |
-| **`TEMPLATE_BINDING` is still one row per service.** | The API can't yet represent a multi-template repo. | v0.7 |
+| **Nothing reports bindings to the API yet.** The table and endpoints exist; `check --fleet` reads repos directly. | The API's fleet view stays empty until something writes to it. | A future `--report` option |
 | **Drift tracks file content, not permission bits.** | A `chmod` on a generated file isn't reported. | Deliberate for now |
 | **Multi-tenancy, SSO, and billing are not built.** | Single-tenant only. | Deliberate |
 
