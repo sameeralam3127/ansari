@@ -34,6 +34,7 @@ from ansari.scaffold.manifest import (
     write_manifest,
 )
 from ansari.scaffold.template import (
+    Delimiters,
     FileSpec,
     TemplateError,
     TemplateSpec,
@@ -43,6 +44,7 @@ from ansari.scaffold.template import (
     bundled_template,
     bundled_version,
     find_bundled_template,
+    generate,
     load_template,
 )
 
@@ -51,6 +53,7 @@ __all__ = [
     "MANIFEST_DIR",
     "MANIFEST_NAME",
     "SCHEMA_VERSION",
+    "Delimiters",
     "FileSpec",
     "Manifest",
     "ManifestError",
@@ -76,6 +79,7 @@ __all__ = [
     "ensure_writable",
     "file_digest",
     "find_bundled_template",
+    "generate",
     "load_template",
     "manifest_path",
     "overlapping_paths",

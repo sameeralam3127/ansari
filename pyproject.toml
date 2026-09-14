@@ -1,7 +1,7 @@
 [project]
 name = "ansari"
 version = "0.1.0"
-description = "Self-hosted, open-source developer delivery platform: CI/CD orchestration, GitOps deployment, and observability for Kubernetes."
+description = "Golden paths that don't rot: scaffold services and infrastructure from versioned templates, and track every repo's drift from them."
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
