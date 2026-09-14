@@ -1,0 +1,265 @@
+# Architecture
+
+How ANSARI is put together today. For *why* the boundaries sit where they do,
+see the [README](../README.md#boundaries); for where this is heading, see
+[roadmap.md](roadmap.md).
+
+## System context
+
+```mermaid
+flowchart LR
+    dev([Developer]) -->|ansari new / check| cli[ANSARI CLI]
+
+    subgraph tpl["Bundled templates (in-tree, versioned)"]
+        t1[python-service ✅]
+        t2[k8s-scaling 📋]
+        t3[terraform-module 📋]
+        t4[ansible-role 📋]
+    end
+
+    tpl --> cli
+    cli -->|writes| repo[Scaffolded repo\n.ansari/manifest.yaml]
+    repo --> gha[Repo's own CI\ngenerated workflow]
+
+    cli -.->|register · report drift 📋| api[ANSARI API\nFastAPI + Postgres]
+    api -.-> fleet[Fleet view 📋]
+
+    classDef ansari fill:#0d7a84,stroke:#0d7a84,color:#fff
+    class cli,api ansari
+```
+
+Solid arrows exist today. Dotted arrows are planned: the CLI does not yet talk to
+the API, and no fleet view exists.
+
+ANSARI orchestrates tools rather than reimplementing them. It **never** runs CI,
+reconciles Kubernetes, applies Terraform, or executes Ansible. It writes files,
+hashes them, and later compares them.
+
+## Components
+
+| Component | Location | Responsibility |
+|---|---|---|
+| CLI | `src/ansari/cli/main.py` | Thin Typer front end: `new`, `templates`, `check`. Parses arguments, formats output, maps errors to exit codes. |
+| Template loading and writing | `src/ansari/scaffold/template.py` | Reads `template.yaml`, validates variables, resolves destinations, renders or copies files. |
+| Manifest | `src/ansari/scaffold/manifest.py` | The `.ansari/manifest.yaml` format: schema dispatch, v1 compatibility, path-overlap invariant, writing. |
+| Drift | `src/ansari/scaffold/drift.py` | Compares files against recorded hashes, per template and composed across a repo; guards writes. |
+| Bundled templates | `src/ansari/cli/templates/<name>/` | One directory per template: Jinja sources plus a descriptor. |
+| API | `src/ansari/api/` | FastAPI app: projects, environments, pipeline runs, deployments, health. |
+| Persistence | `src/ansari/api/models.py`, `alembic/` | SQLAlchemy 2.0 models on Postgres; schema owned by Alembic migrations. |
+
+**Layering rule:** `scaffold/` is pure. It works only with files and paths, with
+no database, no network, and no Typer. The CLI (and later the API) call into it.
+Anything a future `attach` or `sync` needs to write must live in `scaffold/`, not
+in the CLI.
+
+```
+src/ansari/
+├── cli/
+│   ├── main.py                 # new · templates · check
+│   └── templates/
+│       └── python-service/     # template.yaml + Jinja sources
+├── scaffold/                   # pure: files in, reports out
+│   ├── template.py             # descriptor, variables, render modes, generate()
+│   ├── manifest.py             # schema v1/v2, invariants, read/write
+│   └── drift.py                # per-template + composite drift, write guard
+└── api/
+    ├── main.py · config.py · db.py · pagination.py
+    ├── models.py · schemas.py
+    └── routers/                # health · projects · environments · pipelines · deployments
+```
+
+## Flow: `ansari new`
+
+```mermaid
+sequenceDiagram
+    participant U as Developer
+    participant C as CLI
+    participant T as template.py
+    participant M as manifest.py
+
+    U->>C: ansari new vpc --type X --var k=v
+    C->>C: resolve --type (or the --language / --database aliases)
+    C->>T: find_bundled_template(X)
+    T-->>C: TemplateSpec (or None → exit 1, lists available)
+    C->>T: spec.resolve_variables(--var …)
+    Note over T: type, default, choices, reject unknown names
+    C->>T: generate(spec, variables, repo_dir)
+    Note over T: plan every destination first:<br/>outside repo? duplicate? missing source?<br/>→ refuse with nothing written
+    T-->>C: paths written
+    C->>M: build_manifest(...) → write_manifest(...)
+    Note over M: schema 2, one entry, sha256 per file
+```
+
+`name` is always supplied by the CLI and can't be declared by a template, because
+a template that could rename its own output would break the paths the manifest
+tracks.
+
+## Flow: `ansari check`
+
+```mermaid
+flowchart TB
+    start([ansari check PATH]) --> read[read_manifest]
+    read -->|no file| e1[exit 1: not scaffolded by ANSARI]
+    read -->|unreadable| e2[exit 1: could not read manifest]
+    read -->|schema newer than build| e3[exit 1: upgrade ANSARI]
+    read -->|ok| drift[check_repo_drift\nresolve each template by name]
+    drift --> shape{one template\nand resolved?}
+    shape -->|yes| single[single-template output\nbyte-identical to pre-v0.2]
+    shape -->|no| comp[composite output\none line per template]
+    single --> verdict{clean?}
+    comp --> verdict
+    verdict -->|yes| ok[exit 0]
+    verdict -->|behind · edited · unresolved| bad[exit 1]
+```
+
+`check` is **read-only**. It never rewrites a manifest, including a v1 manifest.
+
+## The manifest
+
+### Schemas
+
+| | Schema 1 (pre-v0.2) | Schema 2 (current) |
+|---|---|---|
+| Marker | no `schema` key | `schema: 2` |
+| Templates per repo | exactly one, scalar `template` / `version` | `templates:` list |
+| Variables | coerced to strings | `str · int · bool · list[str]` |
+| Written by | old ANSARI builds | every write path today |
+
+### Reader dispatch
+
+```mermaid
+flowchart LR
+    raw[YAML document] --> s{schema key}
+    s -->|absent| v1[lift to one-entry list\nstringify variables\nnever rewrite]
+    s -->|2| v2[parse templates list]
+    s -->|> 2| new[ManifestTooNewError]
+    s -->|not an int / bool / < 1| bad[ManifestError]
+    v1 --> inv{path overlap?}
+    v2 --> inv
+    inv -->|yes| bad
+    inv -->|no| m[Manifest]
+```
+
+Resolution works from the recorded **template name**, not the legacy
+`variables.language` key. Every manifest ever written records `template:`, so
+old repos need no migration. A golden fixture captured before the migration
+(`tests/fixtures/manifest_v1_python_service.yaml`) keeps this honest.
+
+### Invariants
+
+1. **No file has two owners.** Enforced when a manifest is written *and* when it
+   is read, because the manifest is a file a human can edit.
+2. **An unknown template is reported, never ignored.** `check` exits non-zero.
+   Every write (`ensure_writable`) refuses, because the files an unreadable entry
+   owns are exactly the files whose ownership can't be checked.
+3. **Reads never write.** Upgrading a manifest to schema 2 happens only as a side
+   effect of a write the user asked for.
+
+## The template descriptor
+
+```yaml
+name: role-like
+version: 0.1.0
+render:
+  delimiters: alternate          # jinja (default) | alternate
+variables:
+  with_molecule: { type: bool, default: false }
+files:
+  tasks/main.yml.j2: roles/[[ name ]]/tasks/main.yml     # short form
+  files/preflight.sh:                                    # mapping form
+    dest: roles/[[ name ]]/files/preflight.sh
+    render: copy                                         # jinja | copy
+    mode: "0755"                                         # quoted octal
+  molecule/molecule.yml.j2:
+    dest: roles/[[ name ]]/molecule/default/molecule.yml
+    when: with_molecule                                  # declared bool
+```
+
+| Option | Effect | Validated at load |
+|---|---|---|
+| `delimiters: alternate` | ANSARI's markers become `[[ ]]` `[% %]` `[# #]`, so `{{ }}` passes through | preset must exist; unknown `render` keys rejected |
+| `render: copy` | writes the source's bytes unchanged | mode must be `jinja` or `copy` |
+| `mode` | sets permission bits after writing | must be a quoted octal string, since YAML reads `0755` as 493 |
+| `when` | generates the file only when the variable is `True` | must name a declared `bool` variable |
+
+`generate()` resolves every destination before writing anything. A destination
+outside the repo, two sources writing one path, or a missing source is refused
+with nothing on disk.
+
+## Drift classification
+
+For each file an entry records:
+
+| On disk | Classified as | What a future `sync` does |
+|---|---|---|
+| hash matches | unchanged | replace outright |
+| hash differs | modified | three-way merge, surface conflicts |
+| file missing | deleted | leave alone (removed deliberately) |
+
+A template is **behind** when its recorded version differs from the version this
+build ships. A repo is **clean** only when no template is behind, no file is
+modified or deleted, and nothing is unresolved.
+
+Drift compares **content only**. A `chmod` on a generated file is not reported.
+
+## Error types
+
+| Exception | Raised when | Typical CLI message |
+|---|---|---|
+| `ManifestError` | manifest malformed, fields missing, paths overlap | "Could not read manifest: …" |
+| `ManifestTooNewError` | `schema` is newer than this build | "…upgrade ANSARI to read it" |
+| `UnresolvedTemplateError` | a write is attempted onto a manifest with an unknown template | "refusing to write …" |
+| `TemplateError` | descriptor invalid, destination refused, source missing | the specific cause |
+| `VariableError` | caller's `--var` unknown, mistyped, outside `choices`, or missing | the specific cause |
+
+`ManifestTooNewError` and `UnresolvedTemplateError` subclass `ManifestError`;
+`VariableError` subclasses `TemplateError`. A caller that only catches the base
+class never leaks a traceback.
+
+## API and data model
+
+Current tables:
+
+```mermaid
+erDiagram
+    PROJECT ||--o{ ENVIRONMENT : has
+    PROJECT ||--o{ PIPELINE_RUN : triggers
+    ENVIRONMENT ||--o{ DEPLOYMENT : receives
+    PIPELINE_RUN ||--o{ DEPLOYMENT : produces
+```
+
+- UUID primary keys, timezone-aware timestamps, indexed foreign keys, enums
+  stored by value.
+- List endpoints are paginated (`limit` / `offset`, capped at 200).
+- `TEMPLATE_BINDING` is **not built yet**. It's planned for v0.7 as **one row per
+  attached template**, a cache of what each repo's manifest says, so fleet drift
+  doesn't need to clone every repo. The repo's manifest stays authoritative.
+- The API is unauthenticated. It's for local or self-hosted use only.
+
+## CI
+
+```mermaid
+flowchart LR
+    push([push / PR]) --> ltt
+    subgraph ltt[lint-type-test]
+        l[ruff check] --> f[ruff format --check] --> t[mypy --strict]
+        t --> mig[alembic upgrade head] --> ac[alembic check] --> py[pytest vs Postgres 16]
+    end
+    ltt --> bs
+    subgraph bs[build-and-scan]
+        b[docker build] --> tr[Trivy: fail on CRITICAL/HIGH]
+    end
+```
+
+- API tests **skip locally** when Postgres is unreachable and **fail in CI** if it
+  is, so a missing database can never silently remove coverage.
+- `alembic check` fails the build if models and migrations diverge.
+
+## Planned structural changes
+
+| Change | Why | When |
+|---|---|---|
+| `ansari attach` using the existing `generate()` + `attach_record()` + `ensure_writable()` | first real multi-template repo | v0.4 |
+| Move templates to `src/ansari/templates/` | the API will read them too; they don't belong to `cli` | housekeeping |
+| `TEMPLATE_BINDING` table, one row per attached template | fleet drift without cloning | v0.7 |
+| `src/ansari/integrations/` (GitHub API) | `sync --pr` | v0.8 |
