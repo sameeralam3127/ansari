@@ -10,9 +10,9 @@ dependencies see [roadmap.md](roadmap.md); for how the result fits together see
 | [M1 · Multi-template manifest](#m1--multi-template-manifest) | v0.2 | ✅ merged in #26 | 80 | 95% |
 | [M2 · Pluggable templates](#m2--pluggable-templates) | v0.3 | ✅ merged in #26 | 123 | 96% |
 | [M3 · Render modes](#m3--render-modes) | v0.3.1 | ✅ merged in #28 | 144 | 97% |
-| [M4 · `k8s-scaling` + `attach`](#m4--k8s-scaling--attach) | v0.4 | ✅ built · awaiting merge | 178 | 98% |
-| [M5 · `terraform-module`](#m5--terraform-module) | v0.5 | 📋 next | | |
-| [M6 · `ansible-role`](#m6--ansible-role) | v0.6 | 📋 | | |
+| [M4 · `k8s-scaling` + `attach`](#m4--k8s-scaling--attach) | v0.4 | ✅ merged in #29 | 178 | 98% |
+| [M5 · `terraform-module`](#m5--terraform-module) | v0.5 | ✅ built · awaiting merge | 199 | 98% |
+| [M6 · `ansible-role`](#m6--ansible-role) | v0.6 | 📋 next | | |
 | [M7 · Fleet drift](#m7--fleet-drift) | v0.7 | 📋 | | |
 | [Sync](#v08--sync) | v0.8 | 📋 | | |
 | [Dashboard + demo](#v10--dashboard--demo) | v1.0 | 📋 | | |
@@ -136,7 +136,7 @@ files, and optional files, without special-casing any template.
 
 ## M4 · `k8s-scaling` + `attach`
 
-**Status:** ✅ built on `feat/k8s-scaling-attach` · awaiting merge · **Version:** v0.4
+**Status:** ✅ merged in #29 · **Version:** v0.4
 
 **Goal.** The first real repo with two templates: a python-service repo with
 scaling config attached, and `check` reporting both.
@@ -208,34 +208,59 @@ The Helm tests skip where `helm` isn't installed.
 
 ## M5 · `terraform-module`
 
-**Status:** 📋 · **Version:** v0.5 · **Blocked on:** M2 ✅ · checkpoint 1
+**Status:** ✅ built on `feat/terraform-module` · awaiting merge · **Version:** v0.5
 
-**Goal.** A minimal module skeleton that passes validation in its own generated CI.
+**Goal.** A module skeleton that is valid Terraform for every supported provider,
+with credential-free validation in its own generated CI.
 
 **Generated files**
 
 ```
-main.tf  variables.tf  outputs.tf  versions.tf  README.md
+versions.tf  main.tf  variables.tf  outputs.tf  README.md  .gitignore
 examples/basic/main.tf
 .github/workflows/ansari.yml
-.gitignore
 ```
 
-`versions.tf` pins `required_version` and `required_providers`. Provider pins are
-what go stale fastest, and catching that is the point of drift tracking.
+- `--var provider=aws|google|azurerm` (default `aws`). `versions.tf` pins
+  `required_version >= 1.6.0` and the provider to its **current major**, checked
+  against the Terraform Registry when the template was written: aws `~> 6.0`,
+  google `~> 8.0`, azurerm `~> 5.0`.
+- The module configures **no provider**; `examples/basic/` is the root
+  configuration that does. google gets `labels`, the others `tags`.
+- `name` is validated in HCL: 2–63 lowercase letters, digits, or hyphens.
+- `.gitignore` is copied verbatim (M3's `copy` mode) and ignores
+  `.terraform.lock.hcl`, as a reusable module should.
 
-**Generated CI:** `terraform fmt -check -recursive` → `terraform init
--backend=false` → `terraform validate`. A `plan` job against `examples/basic/` is
-included **commented out and labelled**: a module can't plan without a backend
-and credentials, and ANSARI never needs credentials.
+**Generated CI:** `terraform fmt -check -recursive`, then
+`terraform init -backend=false` + `terraform validate` for the module and the
+example, with `permissions: contents: read`. The `plan` job is present but
+**commented out and labelled**. Actions are pinned to current majors
+(`actions/checkout@v7`, `hashicorp/setup-terraform@v4`).
 
-**Acceptance criteria**
+**Acceptance criteria and evidence**
 
-- `ansari new vpc --type terraform-module` scaffolds, and `check` is clean
-- `terraform validate` passes on the generated module
-- provider list supplied via a `list` variable round-trips through the manifest
+| Criterion | Evidence |
+|---|---|
+| Scaffolds, and `check` is clean | `test_scaffolds_the_expected_layout_and_checks_clean` |
+| Output is valid Terraform | `test_terraform_validates_the_module_and_example`: real Terraform, locally for **aws, google and azurerm**, in CI for aws |
+| Output is `terraform fmt`-clean | `test_terraform_fmt_accepts_the_output`, all three providers |
+| The module rejects invalid names | `test_terraform_rejects_an_invalid_name` |
+| Generated CI needs no credentials, and `plan` is off | `test_generated_ci_validates_without_credentials`, `test_plan_ships_commented_out` |
 
-**Then:** review checkpoint 2.
+**Found by running the real tool.** The first version rendered the `locals` body
+without indentation, because a Jinja `-%]` trims the next line's leading spaces as
+well as the newline. Every other check passed, including the golden hashes, which
+had recorded the broken output. `terraform fmt -check` caught it.
+
+**CI.** A new `template-smoke` job installs Terraform and runs the template tests
+with `ANSARI_TERRAFORM_VALIDATE=aws`, so a template that renders but wouldn't
+validate fails the build. A provider download is several hundred megabytes, so
+google and azurerm are validated on demand rather than on every run.
+
+**Also.** The golden-output guard now covers **every** bundled template, not only
+python-service, and fails when a template has no recorded output at all.
+
+**Then:** review checkpoint 2, before `ansible-role` starts.
 
 ---
 
