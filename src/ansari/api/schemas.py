@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
 from ansari.api.models import DeploymentStatus, PipelineStatus
 
@@ -78,3 +78,35 @@ class PipelineStatusUpdate(BaseModel):
     """
 
     status: PipelineStatus
+
+
+class TemplateBindingWrite(BaseModel):
+    """One `templates:` entry from a repo's manifest, with its drift as last checked.
+
+    `rendered_at` must carry a timezone: a naive value would be stored against
+    whatever the database session assumes, the defect fixed in #19.
+    """
+
+    template: str = Field(min_length=1, max_length=100)
+    version: str = Field(min_length=1, max_length=50)
+    rendered_at: AwareDatetime
+    files: dict[str, str]
+    behind: bool = False
+    edited: bool = False
+    unresolved: bool = False
+
+
+class TemplateBindingRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    project_id: uuid.UUID
+    position: int
+    template: str
+    version: str
+    rendered_at: datetime
+    files: dict[str, str]
+    behind: bool
+    edited: bool
+    unresolved: bool
+    reported_at: datetime

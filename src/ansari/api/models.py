@@ -3,7 +3,18 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import CHAR, DateTime, Enum, ForeignKey, String, TypeDecorator
+from sqlalchemy import (
+    CHAR,
+    JSON,
+    Boolean,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    String,
+    TypeDecorator,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
 from sqlalchemy.engine import Dialect
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -80,6 +91,11 @@ class Project(Base):
     pipeline_runs: Mapped[list["PipelineRun"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
+    template_bindings: Mapped[list["TemplateBinding"]] = relationship(
+        back_populates="project",
+        cascade="all, delete-orphan",
+        order_by="TemplateBinding.position",
+    )
 
 
 class Environment(Base):
@@ -129,3 +145,35 @@ class Deployment(Base):
     )
 
     environment: Mapped["Environment"] = relationship(back_populates="deployments")
+
+
+class TemplateBinding(Base):
+    """The API's cached view of one template attached to a project's repo.
+
+    One row per `templates:` entry in the repo's `.ansari/manifest.yaml`, so a
+    repo carrying two templates has two rows. The manifest in the repo stays
+    authoritative; this exists so a fleet question needn't clone every repo.
+    """
+
+    __tablename__ = "template_bindings"
+    __table_args__ = (
+        UniqueConstraint("project_id", "position", name="uq_template_bindings_project_position"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID, primary_key=True, default=_uuid)
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), index=True)
+    position: Mapped[int] = mapped_column(Integer)
+    """Order in the manifest's `templates:` list; a template may be attached twice."""
+    template: Mapped[str] = mapped_column(String(100), index=True)
+    version: Mapped[str] = mapped_column(String(50))
+    rendered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    files: Mapped[dict[str, str]] = mapped_column(JSON)
+    """Repo-relative path -> content hash, as recorded in the manifest."""
+    behind: Mapped[bool] = mapped_column(Boolean, default=False)
+    edited: Mapped[bool] = mapped_column(Boolean, default=False)
+    unresolved: Mapped[bool] = mapped_column(Boolean, default=False)
+    reported_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    project: Mapped["Project"] = relationship(back_populates="template_bindings")

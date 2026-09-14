@@ -14,6 +14,13 @@ from ansari.scaffold.drift import (
     ensure_writable,
     unresolved_templates,
 )
+from ansari.scaffold.fleet import (
+    FleetReport,
+    RepoResult,
+    TemplateSummary,
+    check_fleet,
+    discover_repos,
+)
 from ansari.scaffold.manifest import (
     LEGACY_SCHEMA_VERSION,
     MANIFEST_DIR,
@@ -50,6 +57,11 @@ from ansari.scaffold.template import (
 )
 
 __all__ = [
+    "FleetReport",
+    "RepoResult",
+    "TemplateSummary",
+    "check_fleet",
+    "discover_repos",
     "AttachConflictError",
     "LEGACY_SCHEMA_VERSION",
     "MANIFEST_DIR",
