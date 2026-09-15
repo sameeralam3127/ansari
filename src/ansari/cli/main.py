@@ -1,10 +1,13 @@
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
+from ansari.dashboard import build_dashboard, render_dashboard
 from ansari.integrations.github import PullRequestError, open_pull_request
 from ansari.scaffold import (
+    FleetReport,
     ManifestError,
     ManifestTooNewError,
     RepoDriftReport,
@@ -340,7 +343,7 @@ def _template_state(report: TemplateDriftReport) -> tuple[str, str]:
     return text, typer.colors.GREEN if report.clean else typer.colors.YELLOW
 
 
-def _check_fleet(root: Path) -> None:
+def _scan_fleet(root: Path) -> FleetReport:
     if not root.is_dir():
         raise _fail(f"Not a directory: {root}")
 
@@ -351,6 +354,11 @@ def _check_fleet(root: Path) -> None:
             "A fleet check that finds nothing is more likely pointed at the wrong "
             "directory than clean."
         )
+    return fleet
+
+
+def _check_fleet(root: Path) -> None:
+    fleet = _scan_fleet(root)
 
     typer.echo(f"Fleet: {_plural(len(fleet.repos), 'repo')} under {root}")
     typer.echo("")
@@ -462,6 +470,31 @@ def check(
             + ". This repo was scaffolded by a newer ANSARI; upgrade to check it."
         )
     raise typer.Exit(1)
+
+
+@app.command()
+def dashboard(
+    path: Annotated[Path, typer.Argument(help="Directory to scan for ANSARI repos")] = Path("."),
+    output: Annotated[
+        Path, typer.Option("--output", "-o", help="Where to write the HTML page")
+    ] = Path("ansari-dashboard.html"),
+) -> None:
+    """Write the fleet's drift as a self-contained HTML page.
+
+    Scans like `check --fleet` and shows the same results: fleet health, where each
+    template is adopted, and drift by template type. Exits 0 once the page is
+    written, drift or not: `check --fleet` is the gate, this is the report.
+    """
+    fleet = _scan_fleet(path)
+    page = build_dashboard(fleet, datetime.now(UTC))
+    try:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(render_dashboard(page))
+    except OSError as exc:
+        raise _fail(f"Could not write {output}: {exc}") from exc
+
+    typer.secho(f"Wrote {output}", fg=typer.colors.GREEN)
+    typer.echo(f"  {page.on_path} of {_plural(page.total, 'repo')} on the golden path")
 
 
 SYNC_LABELS = {

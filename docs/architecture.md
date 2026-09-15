@@ -22,16 +22,17 @@ flowchart LR
     repo --> gha[Repo's own CI\ngenerated workflow]
     cli -->|ansari sync --pr| prs[Pull requests] --> repo
 
-    cli -.->|register · report drift 📋| api[ANSARI API\nFastAPI + Postgres]
-    api -.-> fleet[Fleet view 📋]
+    cli -->|ansari dashboard| dash[Fleet dashboard\nstatic HTML]
+    cli -.->|report drift 📋| api[ANSARI API\nFastAPI + Postgres]
 
     classDef ansari fill:#0d7a84,stroke:#0d7a84,color:#fff
     class cli,api ansari
 ```
 
-Solid arrows exist today. Dotted arrows are planned: nothing reports drift to the
-API yet, and there's no dashboard. Fleet drift itself works today from the CLI
-(`ansari check --fleet`), and the API can store and list template bindings.
+Solid arrows exist today. The dotted arrow is planned: nothing reports drift to the
+API yet, though the API can store and list template bindings. Fleet drift works
+from the CLI (`ansari check --fleet`), and `ansari dashboard` renders the same scan
+as a page.
 
 ANSARI orchestrates tools rather than reimplementing them. It **never** runs CI,
 reconciles Kubernetes, applies Terraform, or executes Ansible. It writes files,
@@ -41,13 +42,15 @@ hashes them, and later compares them.
 
 | Component | Location | Responsibility |
 |---|---|---|
-| CLI | `src/ansari/cli/main.py` | Thin Typer front end: `new`, `attach`, `templates`, `check`, `sync`. Parses arguments, formats output, maps errors to exit codes. |
+| CLI | `src/ansari/cli/main.py` | Thin Typer front end: `new`, `attach`, `templates`, `check`, `sync`, `dashboard`. Parses arguments, formats output, maps errors to exit codes. |
 | Template loading and writing | `src/ansari/scaffold/template.py` | Reads `template.yaml`, validates variables, resolves destinations, renders or copies files. |
 | Manifest | `src/ansari/scaffold/manifest.py` | The `.ansari/manifest.yaml` format: schema dispatch, v1 compatibility, path-overlap invariant, writing. |
 | Drift | `src/ansari/scaffold/drift.py` | Compares files against recorded hashes, per template and composed across a repo; guards writes. |
 | Attach | `src/ansari/scaffold/attach.py` | Adds a template to an existing repo: every refusal checked before any write, then recorded in the manifest. |
 | Fleet | `src/ansari/scaffold/fleet.py` | Finds every ANSARI repo under a directory and checks each; summarises by template. |
 | Sync | `src/ansari/scaffold/sync.py` | Plans and applies upgrades: replace, three-way merge against git history, or refuse. Local git only. |
+| Dashboard | `src/ansari/dashboard/` | Turns a `FleetReport` into page data (health, adoption, drift by template) and renders one self-contained HTML file. Never writes; the CLI does. |
+| Demo | `src/ansari/demo/` | `make demo`'s fleet: nine git repos, one per way a fleet drifts, built with the same scaffold functions. |
 | GitHub | `src/ansari/integrations/github.py` | Opens pull requests through the `git` and `gh` CLIs. The only code that touches the network. |
 | Bundled templates | `src/ansari/cli/templates/<name>/` | One directory per template: Jinja sources plus a descriptor. |
 | API | `src/ansari/api/` | FastAPI app: projects, environments, pipeline runs, deployments, health. |
@@ -62,7 +65,7 @@ in the CLI.
 ```
 src/ansari/
 ├── cli/
-│   ├── main.py                 # new · attach · templates · check
+│   ├── main.py                 # new · attach · templates · check · sync · dashboard
 │   └── templates/
 │       ├── python-service/     # template.yaml + Jinja sources
 │       ├── k8s-scaling/        # attach-only: HPA, PDB, autoscaling.yaml
@@ -75,6 +78,8 @@ src/ansari/
 │   ├── template.py             # descriptor, variables, render modes, generate()
 │   ├── manifest.py             # schema v1/v2, invariants, read/write
 │   └── drift.py                # per-template + composite drift, write guard
+├── dashboard/                  # FleetReport → page data → dashboard.html.j2
+├── demo/                       # make demo's fleet, plus python-service 1.0.0's changed sources
 ├── integrations/
 │   └── github.py               # pull requests via git and gh
 └── api/
@@ -178,6 +183,22 @@ flowchart LR
 Read-only and offline, like single-repo `check`. The summary counts
 **attachments** rather than repos, because each attachment can fall behind on its
 own. A scan that finds nothing exits non-zero instead of reporting a clean fleet.
+
+## Flow: `ansari dashboard`
+
+```mermaid
+flowchart LR
+    root([ansari dashboard ROOT]) --> scan[same scan as\ncheck --fleet]
+    scan -->|nothing found| bad[exit 1, nothing written]
+    scan --> build[build_dashboard\nhealth · adoption · drift by template]
+    build --> render[render_dashboard\nautoescaped Jinja]
+    render --> file[one HTML file\nexit 0, drift or not]
+```
+
+Every repo and every attachment is counted once, under its most severe state
+(unreadable › cannot verify › behind › edited › current), so each breakdown adds
+up to its total. The per-template counts come from `FleetReport.by_template()`
+itself, the numbers `check --fleet` prints.
 
 ## Flow: `ansari sync`
 

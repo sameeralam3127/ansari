@@ -36,3 +36,6 @@ LEARNING.md
 
 # ansible-lint creates this cache in the directory it runs from
 .ansible/
+
+# `make demo` seeds its fleet and writes its dashboard here
+.demo/
