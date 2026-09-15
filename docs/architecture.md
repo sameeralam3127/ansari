@@ -1,8 +1,7 @@
 # Architecture
 
-How ANSARI is put together today. For *why* the boundaries sit where they do,
-see the [README](../README.md#boundaries); for where this is heading, see
-[roadmap.md](roadmap.md).
+How ANSARI is put together today. For an overview, see the
+[README](../README.md); for where it's heading, see [roadmap.md](roadmap.md).
 
 ## System context
 
