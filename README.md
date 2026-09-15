@@ -84,6 +84,9 @@ uv run ansari new payment-api        # scaffold a service
 cat payment-api/.ansari/manifest.yaml
 uv run ansari check payment-api      # verify it's on the golden path
 
+make demo                            # seed a drifted fleet, then check, sync --dry-run, dashboard
+open .demo/dashboard.html
+
 docker compose up --build            # API + Postgres → localhost:8000/docs
 ```
 
@@ -104,9 +107,9 @@ flowchart LR
     cli --> repo[Repo\n.ansari/manifest.yaml\nschema 2 · N templates]
     repo --> gha[GitHub Actions\nlint · test · build · Trivy\nfmt · validate · ansible-lint]
 
-    cli <-->|register · report drift| api[ANSARI API\nFastAPI + Postgres]
-    api --> dash[Fleet view\nwho is behind, and on what]
-    api -->|sync| prs[Pull requests] --> repo
+    cli -->|ansari dashboard| dash[Fleet dashboard\nwho is behind, and on what]
+    cli -->|ansari sync --pr| prs[Pull requests] --> repo
+    cli -.->|report drift · planned| api[ANSARI API\nFastAPI + Postgres]
 
     classDef ansari fill:#0d7a84,stroke:#0d7a84,color:#fff
     class cli,api,dash,tpl ansari
@@ -528,7 +531,7 @@ repository layer: tenant scoping cannot depend on every handler remembering
 | **v0.6** | `ansible-role` — standard layout, `ansible-lint`, optional molecule | ✅ |
 | **v0.7** | Fleet drift — `check --fleet` across types and multi-template repos | ✅ |
 | **v0.8** | Sync — three-way merge, one PR per stale repo | ✅ |
-| **v1.0** | Dashboard + `make demo` — seeds a fleet, drifts it, shows the report | 📋 |
+| **v1.0** | Dashboard + `make demo` — seeds a fleet, drifts it, shows the report | ✅ |
 
 Each milestone ends `mypy --strict` clean, `ruff` clean, and with coverage no
 lower than the milestone before it.
@@ -557,9 +560,10 @@ lower than the milestone before it.
 | `ansari check --fleet` — drift across every repo under a directory, summarised by template | ✅ |
 | API template bindings — one row per attached template; fleet-wide `GET /template-bindings` | ✅ |
 | `ansari sync` — three-way merge against git history; `--dry-run`, `--fleet`, `--pr` | ✅ |
-| Fleet dashboard | 📋 |
+| `ansari dashboard` — fleet health, adoption, and drift by template type, as one static HTML page | ✅ |
+| `make demo` — a nine-repo fleet on real git history, drifted every way the report distinguishes | ✅ |
 
-In place today: `mypy --strict`, `ruff` lint + format, 310 tests (API tests run
+In place today: `mypy --strict`, `ruff` lint + format, 330 tests (API tests run
 against real Postgres with the migrations applied), `alembic check` guarding
 model / migration drift, structured JSON logging with request IDs, `/healthz` +
 `/readyz`, non-root container, Trivy scanning in CI.
@@ -598,6 +602,7 @@ Trivy · Terraform · Ansible
 ```bash
 make setup    # install deps + pre-commit hooks
 make check    # lint + typecheck + test
+make demo     # seed .demo/fleet, drift it, show the report and the dashboard
 ```
 
 ## Contributing

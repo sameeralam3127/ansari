@@ -1,0 +1,267 @@
+{% macro chip(state) %}<span class="chip"><span class="dot s-{{ state }}" aria-hidden="true"></span>{{ labels[state] }}</span>{% endmacro %}
+{% macro bar(segments, noun, name="") %}
+<div class="bar" role="img" aria-label="{% for s in segments %}{{ labels[s.state] }}: {{ s.count }}{% if not loop.last %}, {% endif %}{% endfor %}">
+{% for s in segments %}
+<span class="seg s-{{ s.state }}" style="flex-grow: {{ s.count }}" data-tip="{% if name %}{{ name }} · {% endif %}{{ labels[s.state] }}: {{ plural(s.count, noun) }}"></span>
+{% endfor %}
+</div>
+{% endmacro %}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANSARI fleet · {{ d.root }}</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --hairline: #e1e0d9;
+  --border: rgba(11, 11, 11, 0.10);
+  --code: #f0efec;
+  --adopt: #2a78d6;
+  --adopt-track: #cde2fb;
+  /* Ordered as the bars draw them. Adjacent pairs clear the CVD and
+     normal-vision separation checks; every state also carries a text label. */
+  --s-current: #0ca30c;
+  --s-edited: #fab219;
+  --s-behind: #d03b3b;
+  --s-unverifiable: #898781;
+  --s-unreadable: #4a3aa7;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --hairline: #2c2c2a;
+    --border: rgba(255, 255, 255, 0.10);
+    --code: #2c2c2a;
+    --adopt: #3987e5;
+    --adopt-track: #184f95;
+    --s-unreadable: #9085e9;
+  }
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.wrap { max-width: 1080px; margin: 0 auto; padding: 32px 16px 48px; }
+header { margin-bottom: 24px; }
+.eyebrow { margin: 0; color: var(--ink-2); font-size: 13px; }
+h1 { margin: 2px 0 6px; font-size: 22px; font-weight: 600; overflow-wrap: anywhere; }
+h2 { margin: 0 0 4px; font-size: 15px; font-weight: 600; }
+.sub, .meta { margin: 0; color: var(--ink-2); }
+code {
+  font: 12.5px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: var(--code);
+  padding: 1px 5px;
+  border-radius: 4px;
+  overflow-wrap: anywhere;
+}
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.hero-figure { margin: 8px 0 14px; font-size: 16px; color: var(--ink-2); }
+.hero-figure .big { font-size: 48px; font-weight: 600; line-height: 1; color: var(--ink); margin-right: 6px; }
+.bar { display: flex; gap: 2px; height: 12px; border-radius: 4px; overflow: hidden; }
+.seg { min-width: 4px; flex-basis: 0; }
+.panel > .bar { height: 16px; }
+.meter { height: 12px; border-radius: 4px; background: var(--adopt-track); overflow: hidden; }
+.meter > span { display: block; height: 100%; background: var(--adopt); border-radius: 0 4px 4px 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 20px; list-style: none; padding: 0; margin: 12px 0 0; }
+.legend .count { font-weight: 600; margin-left: 4px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.s-current { background: var(--s-current); }
+.s-edited { background: var(--s-edited); }
+.s-behind { background: var(--s-behind); }
+.s-unverifiable { background: var(--s-unverifiable); }
+.s-unreadable { background: var(--s-unreadable); }
+.scroll { overflow-x: auto; margin-top: 12px; }
+table { width: 100%; border-collapse: collapse; }
+th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--ink-2);
+  font-size: 12.5px;
+  padding: 0 12px 8px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+td { padding: 12px 12px 12px 0; border-bottom: 1px solid var(--hairline); vertical-align: top; }
+tbody tr:last-child td { border-bottom: 0; }
+.w-bar { min-width: 180px; width: 26%; }
+.w-bar .num { display: block; margin-top: 6px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.ver { display: inline-block; margin: 0 6px 4px 0; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--hairline); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ver.is-current { border-color: var(--s-current); }
+.repo code { white-space: nowrap; overflow-wrap: normal; }
+.attach { list-style: none; margin: 0; padding: 0; }
+.attach > li + li { margin-top: 6px; }
+.attach .chip { white-space: normal; }
+.version { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+details { margin: 4px 0 0 16px; color: var(--ink-2); }
+summary { cursor: pointer; }
+details ul { margin: 4px 0 0; padding-left: 18px; }
+.error { color: var(--ink-2); }
+.next ol { margin: 8px 0 0; padding-left: 20px; }
+.next li + li { margin-top: 6px; }
+footer { color: var(--ink-2); font-size: 12.5px; }
+#tip {
+  position: fixed;
+  z-index: 10;
+  pointer-events: none;
+  background: var(--ink);
+  color: var(--surface);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <p class="eyebrow">ANSARI fleet report</p>
+    <h1>{{ d.root }}</h1>
+    <p class="meta">Generated {{ d.generated_at.strftime("%Y-%m-%d %H:%M UTC") }} from the manifests on disk, the same scan as <code>ansari check --fleet</code>.</p>
+  </header>
+
+  <section class="panel" aria-labelledby="health">
+    <h2 id="health">Fleet health</h2>
+    <p class="hero-figure"><span class="big">{{ d.on_path }}</span>of {{ plural(d.total, "repo") }} on the golden path</p>
+    {{ bar(d.health, "repo") }}
+    <ul class="legend">
+    {% for s in d.health %}
+      <li>{{ chip(s.state) }}<span class="count">{{ s.count }}</span></li>
+    {% endfor %}
+    </ul>
+  </section>
+
+  <section class="panel" aria-labelledby="templates">
+    <h2 id="templates">Templates</h2>
+    <p class="sub">Adoption counts repos. Drift counts attachments, each under its most severe state, because a repo can attach a template more than once.</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Template</th><th>Adoption</th><th>Drift</th><th>Versions in use</th></tr></thead>
+        <tbody>
+        {% for t in d.templates %}
+          <tr>
+            <td><strong>{{ t.template }}</strong><br><span class="sub">{% if t.current_version %}ships {{ t.current_version }}{% else %}not in this build{% endif %}</span></td>
+            <td class="w-bar">
+              <div class="meter" role="img" aria-label="{{ t.repos }} of {{ d.readable }} repos" data-tip="{{ t.template }} · in {{ t.repos }} of {{ plural(d.readable, 'readable repo') }}"><span style="width: {{ '%.1f'|format(t.adoption) }}%"></span></div>
+              <span class="num">{{ t.repos }} of {{ d.readable }}{% if d.readable != d.total %} readable{% endif %} · {{ '%.0f'|format(t.adoption) }}%</span>
+            </td>
+            <td class="w-bar">
+              {{ bar(t.drift, "attachment", t.template) }}
+              <span class="num">{{ t.summary }}</span>
+            </td>
+            <td>
+            {% for version, count in t.versions %}
+              <span class="ver{% if version == t.current_version %} is-current{% endif %}" title="{{ plural(count, 'attachment') }}">{{ version }}{% if version == t.current_version %} (current){% endif %} ×{{ count }}</span>
+            {% else %}
+              <span class="sub">unknown</span>
+            {% endfor %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="repos">
+    <h2 id="repos">Repos</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Repo</th><th>State</th><th>Templates</th></tr></thead>
+        <tbody>
+        {% for r in d.repos %}
+          <tr>
+            <td class="repo"><code>{{ r.label }}</code></td>
+            <td>{{ chip(r.state) }}</td>
+            <td>
+            {% if r.error is not none %}
+              <span class="error">{{ r.error }}</span>
+            {% else %}
+              <ul class="attach">
+              {% for a in r.attachments %}
+                <li>
+                  <span class="chip"><span class="dot s-{{ a.state }}" aria-hidden="true"></span>{{ a.template }}
+                  {% if a.state == UNVERIFIABLE %}
+                    <span class="version">unknown to this ANSARI</span>
+                  {% elif a.recorded_version != a.current_version %}
+                    <span class="version">{{ a.recorded_version }} → {{ a.current_version }}</span>
+                  {% else %}
+                    <span class="version">{{ a.recorded_version }}</span>
+                  {% endif %}
+                  </span>
+                  {% if a.modified or a.deleted %}
+                  <details>
+                    <summary>{{ plural(a.modified|length + a.deleted|length, "file") }} edited</summary>
+                    <ul>
+                    {% for path in a.modified %}<li>modified <code>{{ path }}</code></li>{% endfor %}
+                    {% for path in a.deleted %}<li>deleted <code>{{ path }}</code></li>{% endfor %}
+                    </ul>
+                  </details>
+                  {% endif %}
+                </li>
+              {% endfor %}
+              </ul>
+            {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {% if d.count(BEHIND) or d.count(UNVERIFIABLE) %}
+  <section class="panel next" aria-labelledby="next">
+    <h2 id="next">Next</h2>
+    <ol>
+    {% if d.count(BEHIND) %}
+      <li>Preview the upgrade for {{ plural(d.count(BEHIND), "repo") }} behind: <code>ansari sync --fleet --dry-run {{ d.root }}</code>. Then open one pull request per repo with <code>--pr</code>. Edited files are three-way merged, never overwritten.</li>
+    {% endif %}
+    {% if d.count(UNVERIFIABLE) %}
+      <li>{{ plural(d.count(UNVERIFIABLE), "repo") }} {{ "carries" if d.count(UNVERIFIABLE) == 1 else "carry" }} a template from a newer ANSARI. Upgrade ANSARI to check {{ "it" if d.count(UNVERIFIABLE) == 1 else "them" }}.</li>
+    {% endif %}
+    </ol>
+  </section>
+  {% endif %}
+
+  <footer>Written by <code>ansari dashboard</code>. Read-only: nothing was changed to produce this page.</footer>
+</main>
+<div id="tip" role="tooltip" hidden></div>
+<script>
+(() => {
+  const tip = document.getElementById("tip");
+  document.addEventListener("pointerover", (event) => {
+    const mark = event.target.closest("[data-tip]");
+    tip.hidden = !mark;
+    if (mark) tip.textContent = mark.dataset.tip;
+  });
+  document.addEventListener("pointermove", (event) => {
+    if (tip.hidden) return;
+    const left = Math.min(event.clientX + 12, window.innerWidth - tip.offsetWidth - 8);
+    tip.style.left = Math.max(8, left) + "px";
+    tip.style.top = event.clientY + 16 + "px";
+  });
+})();
+</script>
+</body>
+</html>

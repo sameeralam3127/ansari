@@ -15,8 +15,8 @@ acceptance criteria, what shipped) is in [phases.md](phases.md).
 | **v0.5** | M5 | `terraform-module` | ✅ |
 | **v0.6** | M6 | `ansible-role` | ✅ |
 | **v0.7** | M7 | Fleet drift: `check --fleet`, `TEMPLATE_BINDING` per template | ✅ |
-| **v0.8** | — | Sync: three-way merge, one PR per stale repo | ✅ built · awaiting merge |
-| **v1.0** | — | Dashboard + `make demo` | 📋 next |
+| **v0.8** | — | Sync: three-way merge, one PR per stale repo | ✅ |
+| **v1.0** | — | Dashboard + `make demo` | ✅ built · awaiting merge |
 
 ## What depends on what
 
@@ -30,7 +30,7 @@ flowchart LR
     M3 --> M6[M6 · ansible-role ✅]
     M4 --> M7[M7 · check --fleet ✅]
     M7 --> S[v0.8 · sync ✅]
-    S --> D[v1.0 · dashboard + demo]
+    S --> D[v1.0 · dashboard + demo ✅]
 
     CP1{{checkpoint 1}}:::cp
     CP2{{checkpoint 2}}:::cp
@@ -94,7 +94,7 @@ With v0.8 shipped, `sync --pr` exists, so the second tripwire can no longer be c
 - no breaking change to the public CLI without an explicit decision
 - the README and these docs updated in the same change
 
-Coverage so far: 92% (v0.1) → 95% (v0.2) → 96% (v0.3) → 97% (v0.3.1) → 98% (v0.4) → 98% (v0.5) → 98% (v0.6) → 97% (v0.7) → 97% (v0.8).
+Coverage so far: 92% (v0.1) → 95% (v0.2) → 96% (v0.3) → 97% (v0.3.1) → 98% (v0.4) → 98% (v0.5) → 98% (v0.6) → 97% (v0.7) → 97% (v0.8) → 97% (v1.0, now also counting `dashboard/` and `demo/`).
 
 ## Standing decisions
 
@@ -111,6 +111,8 @@ Coverage so far: 92% (v0.1) → 95% (v0.2) → 96% (v0.3) → 97% (v0.3.1) → 9
 | Who owns replicas | python-service's Deployment omits `replicas` while the chart contains k8s-scaling's `autoscaling.yaml` | if Helm gains a better signal that an autoscaler manages a Deployment |
 | Molecule in `ansible-role` | opt-in via `when`, off by default | if the reference roles adopt per-role molecule |
 | Templates ship in-tree | reviewed like code, no external registry | — |
+| Where the dashboard reads from | the repos on disk, through the same scan as `check --fleet`; not the API | once something reports bindings to the API |
+| Dashboard format | one static HTML file: no server, nothing fetched | if it needs history or filtering a static page can't give |
 
 ## Out of scope, including in this fork
 

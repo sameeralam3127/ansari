@@ -14,12 +14,12 @@ dependencies see [roadmap.md](roadmap.md); for how the result fits together see
 | [M5 · `terraform-module`](#m5--terraform-module) | v0.5 | ✅ merged in #30 | 199 | 98% |
 | [M6 · `ansible-role`](#m6--ansible-role) | v0.6 | ✅ merged in #31 | 219 | 98% |
 | [M7 · Fleet drift](#m7--fleet-drift) | v0.7 | ✅ merged in #32 | 236 | 97% |
-| [Sync](#v08--sync) | v0.8 | ✅ built · awaiting merge | 273 | 97% |
-| [Dashboard + demo](#v10--dashboard--demo) | v1.0 | 📋 next | | |
+| [Sync](#v08--sync) | v0.8 | ✅ merged in #33 | 273 | 97% |
+| [Dashboard + demo](#v10--dashboard--demo) | v1.0 | ✅ built · awaiting merge | 298 | 97% |
 | [Housekeeping](#housekeeping) | — | 📋 | | |
 
-The API suite adds 17 tests on top of these counts. They run against Postgres
-in CI.
+From v1.0 the counts include the `dashboard` and `demo` suites. The API suite
+adds 29 tests on top of these counts. They run against Postgres in CI.
 
 ---
 
@@ -407,7 +407,7 @@ isn't part of this milestone.
 
 ## v0.8 · Sync
 
-**Status:** ✅ built on `feat/sync` · awaiting merge
+**Status:** ✅ merged in #33 · **Version:** v0.8
 
 **Goal.** Upgrade repos to the current template versions without discarding what
 people changed: the step that makes drift detection worth having.
@@ -473,10 +473,93 @@ history, so its template is refused and that upgrade is done by hand.
 
 ## v1.0 · Dashboard + demo
 
-**Status:** 📋
+**Status:** ✅ built · awaiting merge · **Version:** v1.0
 
-- fleet health, adoption, and drift by template type
-- `make demo`: seeds a fleet, drifts it, shows the report
+**Goal.** Make the fleet's state something a person can look at, and let anyone
+watch the whole loop (scaffold, drift, detect, plan the upgrade) with one command.
+
+**`ansari dashboard [ROOT] [--output FILE]`**
+
+- Scans exactly like `check --fleet`, from the same `FleetReport`, so the page
+  and the terminal can't disagree. A test compares the two.
+- Writes one self-contained HTML file: no server, nothing fetched, readable from
+  disk or as a CI artifact. Light and dark follow the viewer's system setting.
+- **Fleet health:** repos on the golden path, and a breakdown that counts each
+  repo once under its most severe state (unreadable › cannot verify › behind ›
+  edited › current), so the parts add up to the total.
+- **Adoption:** for each template, how many readable repos attach it, and which
+  versions are in use, with the shipped version first.
+- **Drift by template type:** attachments by state, beside the same
+  `N attached · N behind · N edited` line `check --fleet` prints.
+- **Repos:** every repo with its state, each attached template's version, and the
+  edited files. An unreadable manifest is listed with its error, never dropped.
+- Exits 0 once the page is written, drift or not: `check --fleet` is the gate,
+  this is the report. An empty scan still fails, for the same reason `check` does.
+
+**`make demo`**
+
+Seeds `.demo/fleet`, then runs `ansari check --fleet`, `ansari sync --fleet
+--dry-run` and `ansari dashboard` against it, printing each exit code rather than
+stopping on the expected non-zero ones.
+
+| Repo | How it drifted | Shows as |
+|---|---|---|
+| `services/payments` | python-service + k8s-scaling, both current | on the golden path |
+| `services/orders` | python-service 1.0.0, never upgraded | behind; sync *updates* |
+| `services/checkout` | python-service 1.0.0, memory tuned by hand | behind; sync *merges* `values.yaml` |
+| `services/search` | Dockerfile edited | edited |
+| `infra/network` | terraform-module (aws) | on the golden path |
+| `infra/dns` | terraform-module (google), example deleted | edited |
+| `roles/disk-health` | ansible-role | on the golden path |
+| `roles/ntp` | a template from a newer ANSARI attached | cannot verify |
+| `legacy/reports` | manifest hand-edited so two templates claim one file | unreadable |
+
+Every repo is written by the code `new` and `attach` run and committed to git, so
+the dry-run sync plans against real history. The behind repos are real 1.0.0
+output: `src/ansari/demo/python-service-1.0.0/` holds 1.0.0's descriptor and the
+two sources 1.1.0 changed, and laid over the current template it regenerates 1.0.0
+byte for byte against the golden hashes. A re-run replaces `.demo/fleet` only when
+it carries the demo's marker file; any other non-empty directory is refused.
+
+**Acceptance criteria and evidence**
+
+| Criterion | Evidence |
+|---|---|
+| Health counts each repo once, under its most severe state | `test_every_repo_is_counted_once_under_its_most_severe_state` |
+| Adoption counts repos; drift counts attachments | `test_adoption_counts_repos_and_drift_counts_attachments` |
+| The page agrees with `check --fleet` | `test_the_summary_matches_check_fleet` |
+| Paths and errors read from disk are escaped | `test_the_page_names_every_repo_and_escapes_what_it_read_from_disk` |
+| Written with exit 0 on a drifted fleet; an empty scan refused | `test_dashboard_writes_the_page_and_exits_zero_despite_drift`, `test_dashboard_refuses_an_empty_fleet_and_writes_nothing` |
+| The demo covers every template type and every state | `test_every_template_type_and_every_state_appears`, `test_each_repo_tells_the_story_it_is_listed_with` |
+| Its behind repos are the real 1.0.0 | `test_the_old_python_service_is_the_real_1_0_0` |
+| Sync can upgrade them, keeping the hand edit | `test_sync_can_upgrade_the_behind_repos_keeping_the_hand_edit` |
+| Never replaces a directory it didn't create | `test_refuses_a_directory_the_demo_did_not_create` |
+
+**Found by running it.**
+
+1. The unreadable repo first had git conflict markers in its manifest. PyYAML's
+   error for that runs to seven lines and buried the fleet report, in `check` and
+   `sync` alike. The repo now carries a manifest where two templates claim one
+   file: a one-line error, and a real invariant on show.
+2. The palette validator failed the first state colours: *edited* (yellow) beside
+   *behind* (orange) measured ΔE 13.6, under the floor for full colour vision.
+   Behind is now red and unreadable violet. Every state also carries a text label,
+   so none relies on colour alone.
+3. Repo paths wrapped mid-word in a narrow table column; they no longer wrap.
+
+**Decisions**
+
+- A static file rather than an API page. Nothing reports bindings to the API yet
+  (see M7), so an API-backed page would be empty; reading repos keeps the
+  dashboard as offline as `check`.
+- Behind outranks edited, because behind is what sync can act on and an edit may
+  be deliberate.
+- The demo runs as `python -m ansari.demo` rather than an `ansari demo` command,
+  so a teaching aid adds nothing to the public CLI.
+
+**Limits.** The page is a snapshot: no history, no trend. Adoption over time needs
+the API, or stored reports. The CLI still prints a malformed-YAML error as
+PyYAML's multi-line message.
 
 ---
 
