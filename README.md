@@ -29,6 +29,8 @@ the fleet question: **who is behind, and on what?**
 
 ## What it does
 
+---
+
 ```bash
 ansari new payment-api --type python-service   # scaffold a repo
 ansari attach --type k8s-scaling payment-api   # add another template to it
